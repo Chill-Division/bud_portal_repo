@@ -232,6 +232,14 @@ table {
     margin-top: 1rem;
 }
 
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 1rem;
+    border-radius: 0.5rem;
+}
+
 th,
 td {
     padding: 1rem;

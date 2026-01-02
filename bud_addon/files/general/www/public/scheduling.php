@@ -92,7 +92,7 @@ foreach ($schedules as $sch) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
-        <?= APP_NAME ?> - Cleaning
+        <?= APP_NAME ?> - Scheduling
     </title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -102,7 +102,7 @@ foreach ($schedules as $sch) {
     <?php include 'includes/nav.php'; ?>
 
     <div class="container">
-        <h1>Cleaning & Hygiene</h1>
+        <h1>Task Scheduling</h1>
         <?php if ($message): ?>
             <div class="glass-panel" style="margin-bottom: 1rem; border-color: var(--accent-color);">
                 <?= h($message) ?>
@@ -165,7 +165,7 @@ foreach ($schedules as $sch) {
         <!-- Schedule Form Modal -->
         <div id="schedForm" class="glass-panel"
             style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; z-index: 100; box-shadow: 0 0 50px rgba(0,0,0,0.5);">
-            <h3>New Cleaning Schedule</h3>
+            <h3>New Schedule</h3>
             <form method="POST">
                 <input type="hidden" name="action" value="create_schedule">
                 <label>Task Name</label>

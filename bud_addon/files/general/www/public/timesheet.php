@@ -11,8 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if ($name && ($action === 'IN' || $action === 'OUT')) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO time_logs (staff_name, action) VALUES (?, ?)");
-            $stmt->execute([$name, $action]);
+            $stmt = $pdo->prepare("INSERT INTO time_logs (staff_name, action, timestamp) VALUES (?, ?, ?)");
+            $stmt->execute([$name, $action, date('Y-m-d H:i:s')]);
             $message = "Recorded: $name Signed $action";
         } catch (Exception $e) {
             $message = "Error: " . $e->getMessage();

@@ -120,38 +120,40 @@ $suppliers = $pdo->query("SELECT * FROM suppliers WHERE is_active = 1 ORDER BY n
         </div>
 
         <div class="glass-panel">
-            <table style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Contact</th>
-                        <th>Email / Phone</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($suppliers as $s): ?>
+            <div class="table-responsive">
+                <table style="width: 100%;">
+                    <thead>
                         <tr>
-                            <td><strong>
-                                    <?= h($s['name']) ?>
-                                </strong></td>
-                            <td>
-                                <?= h($s['contact_person']) ?>
-                            </td>
-                            <td>
-                                <?= h($s['email']) ?><br>
-                                <small>
-                                    <?= h($s['phone']) ?>
-                                </small>
-                            </td>
-                            <td>
-                                <button onclick='editSupplier(<?= json_encode($s) ?>)' class="btn"
-                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
-                            </td>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Email / Phone</th>
+                            <th>Actions</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($suppliers as $s): ?>
+                            <tr>
+                                <td><strong>
+                                        <?= h($s['name']) ?>
+                                    </strong></td>
+                                <td>
+                                    <?= h($s['contact_person']) ?>
+                                </td>
+                                <td>
+                                    <?= h($s['email']) ?><br>
+                                    <small>
+                                        <?= h($s['phone']) ?>
+                                    </small>
+                                </td>
+                                <td>
+                                    <button onclick='editSupplier(<?= json_encode($s) ?>)' class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

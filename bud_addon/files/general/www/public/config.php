@@ -1,6 +1,7 @@
 <?php
 // config.php
 // Database Configuration
+date_default_timezone_set('Pacific/Auckland');
 
 $db_file = '/data/bud.db';
 

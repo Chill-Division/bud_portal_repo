@@ -162,38 +162,40 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
 
         <div class="glass-panel">
             <h3>Recent Transfers</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>To</th>
-                        <th>Transported By</th>
-                        <th>Status</th>
-                        <th>Items</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($history as $row): ?>
+            <div class="table-responsive">
+                <table>
+                    <thead>
                         <tr>
-                            <td><?= h($row['form_date']) ?></td>
-                            <td><?= h($row['destination']) ?></td>
-                            <td><?= h($row['transported_by']) ?></td>
-                            <td><?= h($row['status']) ?></td>
-                            <td>
-                                <?php
-                                $items = json_decode($row['coc_items'], true);
-                                echo count($items) . ' items';
-                                ?>
-                            </td>
-                            <td>
-                                <button onclick='viewCoc(<?= json_encode($row) ?>)' class="btn"
-                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</button>
-                            </td>
+                            <th>Date</th>
+                            <th>To</th>
+                            <th>Transported By</th>
+                            <th>Status</th>
+                            <th>Items</th>
+                            <th>Actions</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($history as $row): ?>
+                            <tr>
+                                <td><?= h($row['form_date']) ?></td>
+                                <td><?= h($row['destination']) ?></td>
+                                <td><?= h($row['transported_by']) ?></td>
+                                <td><?= h($row['status']) ?></td>
+                                <td>
+                                    <?php
+                                    $items = json_decode($row['coc_items'], true);
+                                    echo count($items) . ' items';
+                                    ?>
+                                </td>
+                                <td>
+                                    <button onclick='viewCoc(<?= json_encode($row) ?>)' class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

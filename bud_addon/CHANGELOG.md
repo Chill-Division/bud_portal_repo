@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.10] - 2024-05-21
+### Added
+- **Global Timezone**: Enforced 'Pacific/Auckland' timezone across the application to ensure correct timestamps in logs and reports.
+- **Scheduling**: Renamed "Cleaning" module to "Scheduling" to better reflect its versatility for general recurring tasks.
+- **Documentation**: Completely rewrote README for better user clarity.
+
+### Fixed
+- **Responsive Tables**: Added horizontal scrolling to data tables (`.table-responsive`) to prevent layout breakage on mobile devices.
+- **Timesheet**: Now explicitly records local time for Sign In/Out actions.
+
 ## [0.9.9] - 2024-05-21
 ### Fixed
 - Fixed signature canvas alignment issue where the drawn line was offset from the cursor/finger. It now correctly calculates coordinates based on the canvas display size vs internal resolution.

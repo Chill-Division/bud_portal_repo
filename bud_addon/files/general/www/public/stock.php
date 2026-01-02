@@ -161,49 +161,51 @@ $stock = $pdo->query("
         </div>
 
         <div class="glass-panel">
-            <table>
-                <thead>
-                    <tr>
-                        <th>SKU</th>
-                        <th>Name</th>
-                        <th>Category</th>
-                        <th>Supplier</th>
-                        <th>Qty</th>
-                        <th>Ctrl?</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($stock as $item): ?>
-                        <tr
-                            style="<?= $item['quantity'] <= $item['reorder_level'] ? 'background: rgba(239, 68, 68, 0.1);' : '' ?>">
-                            <td><small>
-                                    <?= h($item['sku']) ?>
-                                </small></td>
-                            <td><strong>
-                                    <?= h($item['name']) ?>
-                                </strong></td>
-                            <td>
-                                <?= h($item['category']) ?>
-                            </td>
-                            <td>
-                                <?= h($item['supplier_name']) ?>
-                            </td>
-                            <td>
-                                <?= h(floatval($item['quantity'])) ?>
-                                <?= h($item['unit']) ?>
-                            </td>
-                            <td>
-                                <?= $item['is_controlled'] ? '⚠️' : '' ?>
-                            </td>
-                            <td>
-                                <button onclick='editStock(<?= json_encode($item) ?>)' class="btn"
-                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
-                            </td>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>SKU</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Supplier</th>
+                            <th>Qty</th>
+                            <th>Ctrl?</th>
+                            <th>Actions</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($stock as $item): ?>
+                            <tr
+                                style="<?= $item['quantity'] <= $item['reorder_level'] ? 'background: rgba(239, 68, 68, 0.1);' : '' ?>">
+                                <td><small>
+                                        <?= h($item['sku']) ?>
+                                    </small></td>
+                                <td><strong>
+                                        <?= h($item['name']) ?>
+                                    </strong></td>
+                                <td>
+                                    <?= h($item['category']) ?>
+                                </td>
+                                <td>
+                                    <?= h($item['supplier_name']) ?>
+                                </td>
+                                <td>
+                                    <?= h(floatval($item['quantity'])) ?>
+                                    <?= h($item['unit']) ?>
+                                </td>
+                                <td>
+                                    <?= $item['is_controlled'] ? '⚠️' : '' ?>
+                                </td>
+                                <td>
+                                    <button onclick='editStock(<?= json_encode($item) ?>)' class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
