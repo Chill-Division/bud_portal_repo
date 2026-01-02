@@ -119,7 +119,8 @@ $stock = $pdo->query("
                         </select>
                     </div>
                     <div>
-                        <label>Category</label>
+                        <label>Category <span class="help-icon"
+                                title="Group items for easier reporting (e.g. Raw Materials vs Finished Products)">?</span></label>
                         <select name="category">
                             <option value="Raw Material">Raw Material</option>
                             <option value="Finished Product">Finished Product</option>
@@ -141,7 +142,8 @@ $stock = $pdo->query("
                         <input type="text" name="unit" placeholder="e.g. kg, units">
                     </div>
                     <div>
-                        <label>Reorder Level</label>
+                        <label>Reorder Level <span class="help-icon"
+                                title="Minimum quantity before the item is flagged as Low Stock">?</span></label>
                         <input type="number" step="0.01" name="reorder_level">
                     </div>
                     <div style="display: flex; align-items: center; margin-top: 2rem;">
