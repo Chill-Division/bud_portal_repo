@@ -16,27 +16,26 @@ function isActive($page, $current)
                 style="cursor: default; user-select: none;">.</span>
         </div>
 
+        <ul id="navMenu">
+            <li><a href="index.php" class="<?= isActive('index.php', $current_page) ?>">Dashboard</a></li>
+            <li><a href="suppliers.php" class="<?= isActive('suppliers.php', $current_page) ?>">Suppliers</a></li>
+            <li><a href="stock.php" class="<?= isActive('stock.php', $current_page) ?>">Stock</a></li>
+            <li><a href=" custody.php" class="<?= isActive('custody.php', $current_page) ?>">Chain of Custody</a></li>
+            <li><a href=" timesheet.php" class="<?= isActive('timesheet.php', $current_page) ?>">Time Sheet</a></li>
+            <li><a href=" cleaning.php" class="<?= isActive('cleaning.php', $current_page) ?>">Cleaning</a></li>
+            <li><a href=" reports.php" class="<?= isActive('reports.php', $current_page) ?>">Reports</a></li>
+            <li>
+                <button id=" theme-toggle" style="padding: 0.5rem; background: transparent; border: 1px solid
+                    var(--text-color); color: var(--text-color);"> <span class="icon"></span>
+                    </button>
+            </li>
+        </ul>
+
         <!-- Mobile Toggle Button -->
         <button class="mobile-toggle" id="navToggle"
             style="background: transparent; color: var(--text-color); font-size: 1.5rem; border: none; cursor: pointer;">
             ☰
         </button>
-
-        <ul id="navMenu">
-            <li><a href="index.php" class="<?= isActive('index.php', $current_page) ?>">Dashboard</a></li>
-            <li><a href="suppliers.php" class="<?= isActive('suppliers.php', $current_page) ?>">Suppliers</a></li>
-            <li><a href="stock.php" class="<?= isActive('stock.php', $current_page) ?>">Stock</a></li>
-            <li><a href="custody.php" class="<?= isActive('custody.php', $current_page) ?>">Chain of Custody</a></li>
-            <li><a href="timesheet.php" class="<?= isActive('timesheet.php', $current_page) ?>">Time Sheet</a></li>
-            <li><a href="cleaning.php" class="<?= isActive('cleaning.php', $current_page) ?>">Cleaning</a></li>
-            <li><a href="reports.php" class="<?= isActive('reports.php', $current_page) ?>">Reports</a></li>
-            <li>
-                <button id="theme-toggle"
-                    style="padding: 0.5rem; background: transparent; border: 1px solid var(--text-color); color: var(--text-color);">
-                    <span class="icon"></span>
-                </button>
-            </li>
-        </ul>
     </div>
 </nav>
 

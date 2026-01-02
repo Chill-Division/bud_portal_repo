@@ -1,3 +1,7 @@
+## 0.9.7
+- UI Polish: Fixed Nav Menu visibility (Hidden on Desktop)
+- UI Polish: Moved Mobile Menu Toggle to the right
+
 ## 0.9.6
 - UI Polish: Dashboard links are now white buttons
 - UI Polish: Fixed Responsive Hamburger Menu

@@ -194,6 +194,11 @@ nav a {
     background-color: var(--primary-hover);
 }
 
+/* Mobile Toggle Default (Hidden on Desktop) */
+.mobile-toggle {
+    display: none;
+}
+
 /* Mobile Nav */
 @media (max-width: 768px) {
     nav ul {
