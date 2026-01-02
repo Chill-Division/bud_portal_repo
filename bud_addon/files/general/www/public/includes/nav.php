@@ -25,9 +25,10 @@ function isActive($page, $current)
             <li><a href=" cleaning.php" class="<?= isActive('cleaning.php', $current_page) ?>">Cleaning</a></li>
             <li><a href=" reports.php" class="<?= isActive('reports.php', $current_page) ?>">Reports</a></li>
             <li>
-                <button id=" theme-toggle" style="padding: 0.5rem; background: transparent; border: 1px solid
-                    var(--text-color); color: var(--text-color);"> <span class="icon"></span>
-                    </button>
+                <button id="theme-toggle"
+                    style="padding: 0.5rem; background: transparent; border: 1px solid var(--text-color); color: var(--text-color);">
+                    <span class="icon"></span>
+                </button>
             </li>
         </ul>
 

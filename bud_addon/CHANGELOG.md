@@ -1,3 +1,6 @@
+## 0.9.8
+- Bug Fix: Fixed Regression causing unbroken Navigation and Theme Toggle
+
 ## 0.9.7
 - UI Polish: Fixed Nav Menu visibility (Hidden on Desktop)
 - UI Polish: Moved Mobile Menu Toggle to the right
