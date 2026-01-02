@@ -18,6 +18,35 @@ try {
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     // Enable foreign keys for SQLite
     $pdo->exec("PRAGMA foreign_keys = ON;");
+
+    // Auto-migration: Ensure database schema is up-to-date
+    // Check if product_bundles table exists (v0.10)
+    $tables_check = $pdo->query("SELECT name FROM sqlite_master WHERE type='table' AND name='product_bundles'");
+    if ($tables_check->rowCount() === 0) {
+        // Run v0.10 migration
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS product_bundles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                sku TEXT,
+                description TEXT,
+                is_active BOOLEAN DEFAULT 1,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS bundle_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bundle_id INTEGER NOT NULL,
+                stock_item_id INTEGER NOT NULL,
+                quantity DECIMAL(10, 2) NOT NULL,
+                FOREIGN KEY (bundle_id) REFERENCES product_bundles(id) ON DELETE CASCADE,
+                FOREIGN KEY (stock_item_id) REFERENCES stock_items(id) ON DELETE CASCADE
+            )
+        ");
+    }
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
