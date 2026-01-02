@@ -1,3 +1,8 @@
+## 0.9.5
+- Improved Admin Secret Trigger (Added clickable dot)
+- Restored Table Spacing / Padding
+- Fixed Navigation wrapping issues
+
 ## 0.9.4
 - Hidden Admin Dashboard (Undo, Backup, Restore)
 - Time Sheet Enhancements (Active Staff, Duration, Force Sign Out)
