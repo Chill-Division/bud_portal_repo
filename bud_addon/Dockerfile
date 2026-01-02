@@ -24,6 +24,8 @@ RUN apk -U upgrade && apk add --no-cache \
     } > /etc/php83/conf.d/21-session.ini
 
 COPY files/general files/php83 /
-RUN chown -R php:nginx /www
+RUN chown -R php:nginx /www && \
+    chmod +x /etc/services.d/*/run 2>/dev/null || true && \
+    chmod +x /etc/cont-init.d/* 2>/dev/null || true
 
 ENTRYPOINT ["/init"]
