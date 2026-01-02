@@ -1,3 +1,8 @@
+## 0.9.6
+- UI Polish: Dashboard links are now white buttons
+- UI Polish: Fixed Responsive Hamburger Menu
+- UI polish: Table spacing restored
+
 ## 0.9.5
 - Improved Admin Secret Trigger (Added clickable dot)
 - Restored Table Spacing / Padding

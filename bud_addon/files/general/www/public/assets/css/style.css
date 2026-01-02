@@ -175,6 +175,25 @@ nav a {
     opacity: 0.6;
 }
 
+/* Button Style */
+.btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-color);
+    color: white !important;
+    /* Force white text */
+    text-decoration: none;
+    border-radius: 0.5rem;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: var(--primary-hover);
+}
+
 /* Mobile Nav */
 @media (max-width: 768px) {
     nav ul {
@@ -188,6 +207,7 @@ nav a {
         border-bottom: 1px solid var(--card-border);
         padding: 1rem;
         backdrop-filter: var(--glass-blur);
+        box-shadow: var(--shadow);
     }
 
     nav.open ul {
@@ -196,6 +216,7 @@ nav a {
 
     .mobile-toggle {
         display: block;
+        /* Controlled by CSS now */
     }
 }
 
