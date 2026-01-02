@@ -7,7 +7,7 @@ $message = '';
 // Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    
+
     if ($action === 'create_coc') {
         try {
             $date = $_POST['date'];
@@ -15,12 +15,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $destination = $_POST['destination'];
             $transported_by = $_POST['transported_by'];
             $signature = $_POST['signature_data']; // Base64
-            
+
             // Items
             $item_ids = $_POST['item_id'] ?? [];
             $qtys = $_POST['qty'] ?? [];
             $batches = $_POST['batch'] ?? [];
-            
+
             $coc_items = [];
             for ($i = 0; $i < count($item_ids); $i++) {
                 if ($item_ids[$i] && $qtys[$i] > 0) {
@@ -29,20 +29,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'qty' => $qtys[$i],
                         'batch' => $batches[$i]
                     ];
-                    
+
                     // Deduct stock?
                     // User requirement: "Allocate stock... taking stock off-site"
                     // We probably should deduct stock or mark it as in-transit.
                     // For now, let's just log the movement in COC.
                 }
             }
-            
+
             $stmt = $pdo->prepare("INSERT INTO chain_of_custody (form_date, origin, destination, transported_by, coc_items, signature_image, status) VALUES (?, ?, ?, ?, ?, ?, 'Completed')");
             $stmt->execute([
-                $date, $origin, $destination, $transported_by, json_encode($coc_items), $signature
+                $date,
+                $origin,
+                $destination,
+                $transported_by,
+                json_encode($coc_items),
+                $signature
             ]);
             $id = $pdo->lastInsertId();
-            
+
             Audit::log($pdo, 'chain_of_custody', $id, 'INSERT', null, $_POST);
             $message = "Chain of Custody form saved.";
         } catch (Exception $e) {
@@ -57,6 +62,7 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -73,6 +79,7 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
         }
     </style>
 </head>
+
 <body>
     <?php include 'includes/nav.php'; ?>
 
@@ -84,7 +91,9 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
             </div>
         <?php endif; ?>
 
-        <button onclick="document.getElementById('cocForm').style.display = document.getElementById('cocForm').style.display === 'none' ? 'block' : 'none'" class="btn" style="margin-bottom: 1rem;">
+        <button
+            onclick="document.getElementById('cocForm').style.display = document.getElementById('cocForm').style.display === 'none' ? 'block' : 'none'"
+            class="btn" style="margin-bottom: 1rem;">
             + New Transfer Form
         </button>
 
@@ -93,7 +102,7 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
             <form method="POST" id="transferForm">
                 <input type="hidden" name="action" value="create_coc">
                 <input type="hidden" name="signature_data" id="signature_data">
-                
+
                 <div class="grid">
                     <div>
                         <label>Date</label>
@@ -122,7 +131,8 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
                             <select name="item_id[]" required>
                                 <option value="">Select Item</option>
                                 <?php foreach ($stock_options as $opt): ?>
-                                    <option value="<?= $opt['id'] ?>"><?= h($opt['name']) ?> (<?= h($opt['sku']) ?>)</option>
+                                    <option value="<?= $opt['id'] ?>"><?= h($opt['name']) ?> (<?= h($opt['sku']) ?>)
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -134,12 +144,15 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
                         </div>
                     </div>
                 </div>
-                <button type="button" class="btn" onclick="addItemRow()" style="background: transparent; border: 1px solid var(--primary-color); color: var(--text-color);">+ Add Another Item</button>
-                
+                <button type="button" class="btn" onclick="addItemRow()"
+                    style="background: transparent; border: 1px solid var(--primary-color); color: var(--text-color);">+
+                    Add Another Item</button>
+
                 <h4 style="margin-top: 2rem;">Receiver Signature</h4>
                 <p><small>Sign below to acknowledge receipt/custody.</small></p>
                 <canvas id="signature-pad" width="600" height="200"></canvas>
-                <button type="button" onclick="clearSignature()" style="font-size: 0.8rem; margin-top: 0.5rem;">Clear Signature</button>
+                <button type="button" onclick="clearSignature()" style="font-size: 0.8rem; margin-top: 0.5rem;">Clear
+                    Signature</button>
 
                 <div style="margin-top: 2rem;">
                     <button type="submit" class="btn" onclick="return saveSignature()">Generate COC & Save</button>
@@ -168,13 +181,14 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
                             <td><?= h($row['transported_by']) ?></td>
                             <td><?= h($row['status']) ?></td>
                             <td>
-                                <?php 
-                                    $items = json_decode($row['coc_items'], true);
-                                    echo count($items) . ' items'; 
+                                <?php
+                                $items = json_decode($row['coc_items'], true);
+                                echo count($items) . ' items';
                                 ?>
                             </td>
                             <td>
-                                <button onclick='viewCoc(<?= json_encode($row) ?>)' class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</button>
+                                <button onclick='viewCoc(<?= json_encode($row) ?>)' class="btn"
+                                    style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">View</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -184,12 +198,16 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
     </div>
 
     <!-- View Modal -->
-    <div id="viewModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; backdrop-filter: blur(5px); overflow-y: auto;">
-        <div class="glass-panel" style="margin: 5vh auto; max-width: 800px; background: white; color: black; position: relative;">
-           <button onclick="document.getElementById('viewModal').style.display='none'" style="position: absolute; right: 1rem; top: 1rem; background: transparent; color: black; font-weight: bold; border: 1px solid black;">✕ Close</button>
-           <div id="coc-content" style="padding: 2rem;">
-               <!-- Populated by JS -->
-           </div>
+    <div id="viewModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 100; backdrop-filter: blur(5px); overflow-y: auto;">
+        <div class="glass-panel"
+            style="margin: 5vh auto; max-width: 800px; background: white; color: black; position: relative;">
+            <button onclick="document.getElementById('viewModal').style.display='none'"
+                style="position: absolute; right: 1rem; top: 1rem; background: transparent; color: black; font-weight: bold; border: 1px solid black;">✕
+                Close</button>
+            <div id="coc-content" style="padding: 2rem;">
+                <!-- Populated by JS -->
+            </div>
         </div>
     </div>
 
@@ -220,11 +238,16 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
         function draw(e) {
             if (!painting) return;
             e.preventDefault();
-            
+
             const rect = canvas.getBoundingClientRect();
+
+            // Calculate scale factors (Buffer Size / Display Size)
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
             // Handle Touch
-            const x = (e.clientX || e.touches[0].clientX) - rect.left;
-            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            const x = ((e.clientX || e.touches[0].clientX) - rect.left) * scaleX;
+            const y = ((e.clientY || e.touches[0].clientY) - rect.top) * scaleY;
 
             ctx.lineWidth = 2;
             ctx.lineCap = 'round';
@@ -239,7 +262,7 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
         canvas.addEventListener('mousedown', startPosition);
         canvas.addEventListener('mouseup', endPosition);
         canvas.addEventListener('mousemove', draw);
-        
+
         canvas.addEventListener('touchstart', startPosition);
         canvas.addEventListener('touchend', endPosition);
         canvas.addEventListener('touchmove', draw);
@@ -294,4 +317,5 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
         }
     </script>
 </body>
+
 </html>

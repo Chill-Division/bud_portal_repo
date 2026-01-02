@@ -1,3 +1,9 @@
+# Changelog
+
+## [0.9.9] - 2024-05-21
+### Fixed
+- Fixed signature canvas alignment issue where the drawn line was offset from the cursor/finger. It now correctly calculates coordinates based on the canvas display size vs internal resolution.
+
 ## 0.9.8
 - Bug Fix: Fixed Regression causing unbroken Navigation and Theme Toggle
 
