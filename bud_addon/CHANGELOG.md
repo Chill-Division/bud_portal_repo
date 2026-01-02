@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.10] - 2026-01-03
+### Added
+- **Bundle Management System**: New "Bundles" page allows creating product bundles (e.g., "Finished Box" containing multiple stock items). When bundles are shipped via Chain of Custody, all component items are automatically deducted from stock.
+- **COC Stock Deduction**: Chain of Custody submissions now automatically reduce stock quantities for shipped items, with full audit trail logging.
+- **Scheduling - Upcoming Tasks**: New section displays tasks that will be due within 24 hours.
+- **Scheduling - Edit Capability**: Edit button for each schedule with modal form to modify name, frequency, and description.
+- **Scheduling - Completion History**: History button shows last 7 completions for each schedule with staff names, dates, and notes.
+- **Timesheet - 7-Day Reporting**: New comprehensive weekly summary with:
+  - Daily breakdown showing total hours and staff count per day
+  - Staff breakdown showing total hours per person with daily details
+- **Navigation**: Added "Bundles" link to main navigation.
+
+### Technical
+- Added `product_bundles` and `bundle_items` database tables
+- New files: `bundles.php`, `get_bundle_items.php`, `get_schedule_history.php`
+- Enhanced `custody.php` with automatic stock deduction logic
+- Enhanced `scheduling.php` with upcoming tasks classification and edit/history modals
+- Enhanced `timesheet.php` with 7-day historical analysis and aggregation
+
+### Notes
+- Bundle system supports controlled substance tracking - controlled items in bundles are properly logged for regulatory compliance
+- Stock deductions are audited in `audit_log` for full traceability
+- Scheduling upcoming threshold is configurable (currently 24 hours before due date)
+
+
+
 ## [0.9.10] - 2024-05-21
 ### Added
 - **Global Timezone**: Enforced 'Pacific/Auckland' timezone across the application to ensure correct timestamps in logs and reports.
@@ -16,38 +42,3 @@
 
 ## 0.9.8
 - Bug Fix: Fixed Regression causing unbroken Navigation and Theme Toggle
-
-## 0.9.7
-- UI Polish: Fixed Nav Menu visibility (Hidden on Desktop)
-- UI Polish: Moved Mobile Menu Toggle to the right
-
-## 0.9.6
-- UI Polish: Dashboard links are now white buttons
-- UI Polish: Fixed Responsive Hamburger Menu
-- UI polish: Table spacing restored
-
-## 0.9.5
-- Improved Admin Secret Trigger (Added clickable dot)
-- Restored Table Spacing / Padding
-- Fixed Navigation wrapping issues
-
-## 0.9.4
-- Hidden Admin Dashboard (Undo, Backup, Restore)
-- Time Sheet Enhancements (Active Staff, Duration, Force Sign Out)
-
-## 0.9.3
-- UI Polish (Dark Mode, Borders, Nav)
-- Added Tooltips to Stock Forms
-- New Advanced Reporting (Materials In / 12-Month In-Out)
-
-## 0.9.2
-- Fixed Service Permissions (Docker)
-- Switched to SQLite
-
-## 0.9.1
-- Added First Run DB Check
-- Rebranded to BUD
-
-## 0.9
-
-- Initial pre-release (bugs expected)

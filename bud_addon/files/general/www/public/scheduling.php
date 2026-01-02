@@ -21,6 +21,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $message = $e->getMessage();
         }
+    } elseif ($action === 'edit_schedule') {
+        $id = $_POST['id'];
+        $name = $_POST['name'];
+        $frequency = $_POST['frequency'];
+        $description = $_POST['description'];
+
+        try {
+            $old_stmt = $pdo->prepare("SELECT * FROM cleaning_schedules WHERE id = ?");
+            $old_stmt->execute([$id]);
+            $old = $old_stmt->fetch();
+
+            $stmt = $pdo->prepare("UPDATE cleaning_schedules SET name=?, frequency=?, description=? WHERE id=?");
+            $stmt->execute([$name, $frequency, $description, $id]);
+            Audit::log($pdo, 'cleaning_schedules', $id, 'UPDATE', $old, $_POST);
+            $message = "Schedule updated.";
+        } catch (Exception $e) {
+            $message = $e->getMessage();
+        }
     } elseif ($action === 'log_cleaning') {
         $sid = $_POST['schedule_id'];
         $staff = $_POST['staff_name'];
@@ -29,16 +47,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $stmt = $pdo->prepare("INSERT INTO cleaning_logs (schedule_id, staff_name, notes) VALUES (?, ?, ?)");
             $stmt->execute([$sid, $staff, $notes]);
-            $message = "Cleaning logged successfully.";
+            $message = "Task logged successfully.";
         } catch (Exception $e) {
             $message = $e->getMessage();
         }
     }
 }
 
-// Logic to determine what's due
+// Logic to determine what's due, upcoming, and completed
 $schedules = $pdo->query("SELECT * FROM cleaning_schedules WHERE is_active = 1")->fetchAll();
 $due_items = [];
+$upcoming_items = [];
 $history = [];
 
 foreach ($schedules as $sch) {
@@ -48,6 +67,9 @@ foreach ($schedules as $sch) {
     $last = $stmt->fetch();
 
     $is_due = false;
+    $is_upcoming = false;
+    $threshold_days = 0;
+
     if (!$last) {
         $is_due = true;
     } else {
@@ -57,21 +79,23 @@ foreach ($schedules as $sch) {
 
         switch ($sch['frequency']) {
             case 'Daily':
-                if ($diff_days >= 1)
-                    $is_due = true;
+                $threshold_days = 1;
                 break;
             case 'Weekly':
-                if ($diff_days >= 7)
-                    $is_due = true;
+                $threshold_days = 7;
                 break;
             case 'Fortnightly':
-                if ($diff_days >= 14)
-                    $is_due = true;
+                $threshold_days = 14;
                 break;
             case 'Monthly':
-                if ($diff_days >= 28)
-                    $is_due = true;
+                $threshold_days = 28;
                 break;
+        }
+
+        if ($diff_days >= $threshold_days) {
+            $is_due = true;
+        } elseif ($diff_days >= ($threshold_days - 1)) {
+            $is_upcoming = true;
         }
     }
 
@@ -80,6 +104,8 @@ foreach ($schedules as $sch) {
 
     if ($is_due) {
         $due_items[] = $sch;
+    } elseif ($is_upcoming) {
+        $upcoming_items[] = $sch;
     } else {
         $history[] = $sch;
     }
@@ -141,6 +167,27 @@ foreach ($schedules as $sch) {
                 </div>
             </div>
 
+            <!-- Upcoming Tasks -->
+            <div style="grid-column: span 2;">
+                <?php if (!empty($upcoming_items)): ?>
+                <div class="glass-panel" style="border-left: 5px solid #f59e0b;">
+                    <h3>⏰ Upcoming Tasks</h3>
+                    <p style="font-size: 0.9rem; opacity: 0.8;">These tasks will be due within 24 hours</p>
+                    <?php foreach ($upcoming_items as $item): ?>
+                        <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--card-border);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong><?= h($item['name']) ?></strong>
+                                    <span style="font-size: 0.8em; opacity: 0.7;">(<?= $item['frequency'] ?>)</span>
+                                    <p><small><?= h($item['description']) ?></small></p>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+
             <!-- Create New Schedule -->
             <div>
                 <div class="glass-panel">
@@ -150,11 +197,17 @@ foreach ($schedules as $sch) {
 
                     <h4 style="margin-top: 1rem;">All Schedules</h4>
                     <ul style="list-style: none; padding: 0;">
-                        <?php foreach (array_merge($due_items, $history) as $s): ?>
-                            <li style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
-                                <?= h($s['name']) ?> <small>(
-                                    <?= $s['frequency'] ?>)
-                                </small>
+                        <?php foreach (array_merge($due_items, $upcoming_items, $history) as $s): ?>
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <?= h($s['name']) ?> <small>(<?= $s['frequency'] ?>)</small>
+                                </div>
+                                <div>
+                                    <button onclick='editSchedule(<?= json_encode($s) ?>)' class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem; margin-right: 0.25rem;">Edit</button>
+                                    <button onclick='viewHistory(<?= $s["id"] ?>, "<?= h($s["name"]) ?>")' class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem; background: #6366f1;">History</button>
+                                </div>
                             </li>
                         <?php endforeach; ?>
                     </ul>
@@ -211,6 +264,46 @@ foreach ($schedules as $sch) {
                 </div>
             </form>
         </div>
+        </div>
+
+        <!-- Edit Schedule Modal -->
+        <div id="editModal" class="glass-panel"
+            style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 500px; z-index: 100; box-shadow: 0 0 50px rgba(0,0,0,0.5);">
+            <h3>Edit Schedule</h3>
+            <form method="POST">
+                <input type="hidden" name="action" value="edit_schedule">
+                <input type="hidden" name="id" id="edit_id">
+                <label>Task Name</label>
+                <input type="text" name="name" id="edit_name" required>
+
+                <label>Frequency</label>
+                <select name="frequency" id="edit_frequency">
+                    <option value="Daily">Daily</option>
+                    <option value="Weekly">Weekly</option>
+                    <option value="Fortnightly">Fortnightly</option>
+                    <option value="Monthly">Monthly</option>
+                </select>
+
+                <label>Description</label>
+                <textarea name="description" id="edit_description" rows="2"></textarea>
+
+                <div style="margin-top: 1rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button type="button" onclick="document.getElementById('editModal').style.display='none'"
+                        style="background: transparent; border: 1px solid var(--text-color); color: var(--text-color);">Cancel</button>
+                    <button type="submit" class="btn">Update</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- History Modal -->
+        <div id="historyModal" class="glass-panel"
+            style="display: none; position: fixed; top: 10%; left: 50%; transform: translateX(-50%); width: 90%; max-width: 600px; z-index: 100; box-shadow: 0 0 50px rgba(0,0,0,0.5); max-height: 80vh; overflow-y: auto;">
+            <h3>History: <span id="history_task_name"></span></h3>
+            <div id="history_content">
+                <!-- Populated by JavaScript -->
+            </div>
+            <button onclick="document.getElementById('historyModal').style.display='none'" class="btn" style="margin-top: 1rem;">Close</button>
+        </div>
     </div>
 
     <script>
@@ -218,6 +311,46 @@ foreach ($schedules as $sch) {
             document.getElementById('log_schedule_id').value = id;
             document.getElementById('log_task_name').innerText = name;
             document.getElementById('logModal').style.display = 'block';
+        }
+
+        function editSchedule(data) {
+            document.getElementById('edit_id').value = data.id;
+            document.getElementById('edit_name').value = data.name;
+            document.getElementById('edit_frequency').value = data.frequency;
+            document.getElementById('edit_description').value = data.description || '';
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function viewHistory(scheduleId, taskName) {
+            document.getElementById('history_task_name').innerText = taskName;
+            const content = document.getElementById('history_content');
+            content.innerHTML = '<p>Loading...</p>';
+            document.getElementById('historyModal').style.display = 'block';
+
+            // Fetch history via AJAX
+            fetch(`get_schedule_history.php?id=${scheduleId}`)
+                .then(r => r.json())
+                .then(logs => {
+                    if (logs.length === 0) {
+                        content.innerHTML = '<p>No completion history yet.</p>';
+                        return;
+                    }
+
+                    let html = '<table style="width: 100%;"><thead><tr><th>Date</th><th>Completed By</th><th>Notes</th></tr></thead><tbody>';
+                    logs.forEach(log => {
+                        const date = new Date(log.completed_at).toLocaleString();
+                        html += `<tr>
+                            <td>${date}</td>
+                            <td>${log.staff_name}</td>
+                            <td>${log.notes || '-'}</td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    content.innerHTML = html;
+                })
+                .catch(err => {
+                    content.innerHTML = '<p>Error loading history.</p>';
+                });
         }
     </script>
 </body>

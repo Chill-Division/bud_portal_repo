@@ -97,4 +97,25 @@ CREATE TABLE IF NOT EXISTS materials_out_reports (
   report_data JSON
 );
 
+-- 9. Product Bundles
+CREATE TABLE IF NOT EXISTS product_bundles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  sku TEXT,
+  description TEXT,
+  is_active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. Bundle Items (Components)
+CREATE TABLE IF NOT EXISTS bundle_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  bundle_id INTEGER NOT NULL,
+  stock_item_id INTEGER NOT NULL,
+  quantity DECIMAL(10, 2) NOT NULL,
+  FOREIGN KEY (bundle_id) REFERENCES product_bundles(id) ON DELETE CASCADE,
+  FOREIGN KEY (stock_item_id) REFERENCES stock_items(id) ON DELETE CASCADE
+);
+
 COMMIT;

@@ -30,10 +30,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'batch' => $batches[$i]
                     ];
 
-                    // Deduct stock?
-                    // User requirement: "Allocate stock... taking stock off-site"
-                    // We probably should deduct stock or mark it as in-transit.
-                    // For now, let's just log the movement in COC.
+                    // Deduct stock quantity
+                    $item_id = $item_ids[$i];
+                    $qty = $qtys[$i];
+
+                    // Get old stock data for audit
+                    $old_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+                    $old_stock_stmt->execute([$item_id]);
+                    $old_stock = $old_stock_stmt->fetch();
+
+                    if ($old_stock) {
+                        // Update stock quantity
+                        $update_stmt = $pdo->prepare("UPDATE stock_items SET quantity = quantity - ? WHERE id = ?");
+                        $update_stmt->execute([$qty, $item_id]);
+
+                        // Get new stock data
+                        $new_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+                        $new_stock_stmt->execute([$item_id]);
+                        $new_stock = $new_stock_stmt->fetch();
+
+                        // Log the stock deduction in audit
+                        Audit::log($pdo, 'stock_items', $item_id, 'UPDATE', $old_stock, $new_stock);
+                    }
                 }
             }
 
@@ -49,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = $pdo->lastInsertId();
 
             Audit::log($pdo, 'chain_of_custody', $id, 'INSERT', null, $_POST);
-            $message = "Chain of Custody form saved.";
+            $message = "Chain of Custody form saved and stock deducted.";
         } catch (Exception $e) {
             $message = "Error: " . $e->getMessage();
         }

@@ -65,6 +65,70 @@ function calculate_duration($logs, $current_log) {
     }
     return '-';
 }
+
+// 7-Day Historical Reporting
+$seven_days_ago = date('Y-m-d', strtotime('-7 days'));
+$weekly_logs = $pdo->query("SELECT * FROM time_logs WHERE DATE(timestamp) >= '$seven_days_ago' ORDER BY timestamp ASC")->fetchAll();
+
+// Calculate daily totals and staff totals
+$daily_stats = [];
+$staff_stats = [];
+
+foreach ($weekly_logs as $log) {
+    $date = date('Y-m-d', strtotime($log['timestamp']));
+    $staff = $log['staff_name'];
+    
+    if (!isset($daily_stats[$date])) {
+        $daily_stats[$date] = ['total_hours' => 0, 'staff_count' => []];
+    }
+    if (!isset($staff_stats[$staff])) {
+        $staff_stats[$staff] = ['total_hours' => 0, 'daily' => []];
+    }
+}
+
+// Pair IN/OUT and calculate durations
+$staff_sessions = [];
+foreach ($weekly_logs as $log) {
+    $staff = $log['staff_name'];
+    if (!isset($staff_sessions[$staff])) {
+        $staff_sessions[$staff] = [];
+    }
+    
+    if ($log['action'] === 'IN') {
+        $staff_sessions[$staff][] = ['in' => $log, 'out' => null];
+    } elseif ($log['action'] === 'OUT' && !empty($staff_sessions[$staff])) {
+        $last_index = count($staff_sessions[$staff]) - 1;
+        if ($staff_sessions[$staff][$last_index]['out'] === null) {
+            $staff_sessions[$staff][$last_index]['out'] = $log;
+        }
+    }
+}
+
+// Calculate totals
+foreach ($staff_sessions as $staff => $sessions) {
+    foreach ($sessions as $session) {
+        if ($session['out']) {
+            $in_time = strtotime($session['in']['timestamp']);
+            $out_time = strtotime($session['out']['timestamp']);
+            $duration_hours = ($out_time - $in_time) / 3600;
+            
+            $date = date('Y-m-d', $in_time);
+            
+            // Daily stats
+            if (isset($daily_stats[$date])) {
+                $daily_stats[$date]['total_hours'] += $duration_hours;
+                $daily_stats[$date]['staff_count'][$staff] = true;
+            }
+            
+            // Staff stats
+            $staff_stats[$staff]['total_hours'] += $duration_hours;
+            if (!isset($staff_stats[$staff]['daily'][$date])) {
+                $staff_stats[$staff]['daily'][$date] = 0;
+            }
+            $staff_stats[$staff]['daily'][$date] += $duration_hours;
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -163,6 +227,77 @@ function calculate_duration($logs, $current_log) {
                         <?php endforeach; ?>
                         <?php if (empty($logs)): ?>
                             <tr><td colspan="4">No activity recorded today.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Last 7 Days Summary -->
+            <div class="glass-panel" style="grid-column: span 2;">
+                <h3>📊 Last 7 Days Summary</h3>
+                
+                <h4 style="margin-top: 1.5rem;">Daily Breakdown</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Total Hours</th>
+                            <th>Staff Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        krsort($daily_stats); // Most recent first
+                        foreach ($daily_stats as $date => $stats): 
+                        ?>
+                        <tr>
+                            <td><strong><?= date('D, M j', strtotime($date)) ?></strong></td>
+                            <td><?= number_format($stats['total_hours'], 1) ?>h</td>
+                            <td><?= count($stats['staff_count']) ?> staff</td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($daily_stats)): ?>
+                            <tr><td colspan="3">No activity in the last 7 days.</td></tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+
+                <h4 style="margin-top: 1.5rem;">Staff Breakdown</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>Total Hours</th>
+                            <th>Daily Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        // Sort staff by total hours descending
+                        uasort($staff_stats, function($a, $b) {
+                            return $b['total_hours'] <=> $a['total_hours'];
+                        });
+                        foreach ($staff_stats as $staff => $stats): 
+                        ?>
+                        <tr>
+                            <td><strong><?= h($staff) ?></strong></td>
+                            <td style="color: var(--accent-color); font-weight: bold;"><?= number_format($stats['total_hours'], 1) ?>h</td>
+                            <td>
+                                <small>
+                                    <?php 
+                                    krsort($stats['daily']);
+                                    $daily_str = [];
+                                    foreach ($stats['daily'] as $date => $hours) {
+                                        $daily_str[] = date('D', strtotime($date)) . ": " . number_format($hours, 1) . "h";
+                                    }
+                                    echo implode(' | ', $daily_str);
+                                    ?>
+                                </small>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                        <?php if (empty($staff_stats)): ?>
+                            <tr><td colspan="3">No staff activity in the last 7 days.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
