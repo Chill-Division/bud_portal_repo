@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1] - 2026-01-03
+### Fixed
+- **Auto-Migration System**: Database schema now updates automatically on any page load. No manual migration required when upgrading to v0.10.
+- Removed manual migration script in favor of automatic migration in `config.php`
+
+
+
 ## [0.10] - 2026-01-03
 ### Added
 - **Bundle Management System**: New "Bundles" page allows creating product bundles (e.g., "Finished Box" containing multiple stock items). When bundles are shipped via Chain of Custody, all component items are automatically deducted from stock.
