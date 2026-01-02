@@ -22,6 +22,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get today's logs
 $logs = $pdo->query("SELECT * FROM time_logs WHERE DATE(timestamp) = '$today' ORDER BY timestamp DESC")->fetchAll();
+
+// Calculate Active Users
+// We need the LATEST action for every user. 
+// Subquery to get max ID per user, then join.
+// Actually, simpler to just fetch all time_logs (or last few days) and process in PHP if dataset small, 
+// OR use a proper window function / groupwise max.
+// Let's use Groupwise Max.
+$active_users_stmt = $pdo->query("
+    SELECT t1.*
+    FROM time_logs t1
+    JOIN (
+        SELECT staff_name, MAX(id) as max_id
+        FROM time_logs
+        GROUP BY staff_name
+    ) t2 ON t1.id = t2.max_id
+    WHERE t1.action = 'IN'
+    ORDER BY t1.timestamp DESC
+");
+$active_users = $active_users_stmt->fetchAll();
+
+// Duration Helper
+function calculate_duration($logs, $current_log) {
+    if ($current_log['action'] !== 'OUT') return '';
+    
+    // Find the immediate previous IN for this user
+    foreach ($logs as $l) {
+        // Since $logs is ordered DESC, we look for logs AFTER this one in the array (older in time)
+        if ($l['id'] < $current_log['id'] 
+            && $l['staff_name'] === $current_log['staff_name'] 
+            && $l['action'] === 'IN') {
+            
+            $out_time = strtotime($current_log['timestamp']);
+            $in_time = strtotime($l['timestamp']);
+            $diff = $out_time - $in_time;
+            
+            // Format duration
+            $h = floor($diff / 3600);
+            $m = floor(($diff % 3600) / 60);
+            return "{$h}h {$m}m";
+        }
+    }
+    return '-';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -43,14 +86,37 @@ $logs = $pdo->query("SELECT * FROM time_logs WHERE DATE(timestamp) = '$today' OR
             </div>
         <?php endif; ?>
 
+        <!-- Active Staff Panel -->
+        <div class="glass-panel" style="margin-bottom: 2rem;">
+            <h3>🟢 Currently Signed In</h3>
+            <?php if (empty($active_users)): ?>
+                <p style="opacity: 0.7;">No staff currently active.</p>
+            <?php else: ?>
+                <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                    <?php foreach ($active_users as $user): ?>
+                        <div class="glass-panel" style="background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success-color, #10b981); padding: 1rem;">
+                            <h4 style="margin: 0;"><?= h($user['staff_name']) ?></h4>
+                            <p style="font-size: 0.8rem; margin: 0.5rem 0;">
+                                Since: <?= date('H:i', strtotime($user['timestamp'])) ?>
+                            </p>
+                            <form method="POST" onsubmit="return confirm('Sign out <?= h($user['staff_name']) ?>?');" style="margin-top: 0.5rem;">
+                                <input type="hidden" name="staff_name" value="<?= h($user['staff_name']) ?>">
+                                <input type="hidden" name="action" value="OUT">
+                                <button type="submit" class="btn" style="width: 100%; font-size: 0.8rem; padding: 0.25rem; background: #ef4444;">Sign Out</button>
+                            </form>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
         <div class="grid">
             <div class="glass-panel">
-                <h3>Sign In / Out</h3>
+                <h3>Manual Entry</h3>
                 <form method="POST">
                     <label>Your Name</label>
                     <input type="text" name="staff_name" placeholder="Enter name" required list="staff_list">
                     
-                    <!-- We could auto-populate this datalist from distinct names in DB if we wanted -->
                     <datalist id="staff_list">
                         <?php 
                         $distinct_names = $pdo->query("SELECT DISTINCT staff_name FROM time_logs LIMIT 20")->fetchAll(PDO::FETCH_COLUMN);
@@ -73,6 +139,7 @@ $logs = $pdo->query("SELECT * FROM time_logs WHERE DATE(timestamp) = '$today' OR
                             <th>Time</th>
                             <th>Name</th>
                             <th>Action</th>
+                            <th>Duration</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -89,10 +156,13 @@ $logs = $pdo->query("SELECT * FROM time_logs WHERE DATE(timestamp) = '$today' OR
                                     <?= $log['action'] ?>
                                 </span>
                             </td>
+                            <td style="font-size: 0.9rem; opacity: 0.8;">
+                                <?= calculate_duration($logs, $log) ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                         <?php if (empty($logs)): ?>
-                            <tr><td colspan="3">No activity recorded today.</td></tr>
+                            <tr><td colspan="4">No activity recorded today.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>

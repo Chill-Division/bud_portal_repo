@@ -1,3 +1,7 @@
+## 0.9.4
+- Hidden Admin Dashboard (Undo, Backup, Restore)
+- Time Sheet Enhancements (Active Staff, Duration, Force Sign Out)
+
 ## 0.9.3
 - UI Polish (Dark Mode, Borders, Nav)
 - Added Tooltips to Stock Forms
