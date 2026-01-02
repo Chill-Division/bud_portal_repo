@@ -23,13 +23,7 @@ RUN apk -U upgrade && apk add --no-cache \
         echo "extension=session.so"; \
     } > /etc/php83/conf.d/21-session.ini
 
-#RUN mkdir -p /grace_config && \
-#    chown -R php:nginx /grace_config && \
-#    chmod -R 660 /grace_config && \
-#    touch /grace_config/grace.db && \
-#    chown php:nginx /grace_config/grace.db
-
 COPY files/general files/php83 /
-RUN chown php:nginx /www/public/grace.db
+RUN chown -R php:nginx /www
 
 ENTRYPOINT ["/init"]

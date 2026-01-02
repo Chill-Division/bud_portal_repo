@@ -4,17 +4,19 @@ require_once 'config.php';
 // First Run Check
 try {
     // Try to select 1 record from suppliers to see if table exists
-    $pdo->query("SELECT 1 FROM suppliers LIMIT 1");
+    // SQLite throws exception if table doesn't exist
+    $result = $pdo->query("SELECT 1 FROM suppliers LIMIT 1");
 } catch (PDOException $e) {
     // Table likely doesn't exist, try to import schema
     if (file_exists('database/schema.sql')) {
         $sql = file_get_contents('database/schema.sql');
         try {
+            // exec() allows multiple statements
             $pdo->exec($sql);
-            // Log success or show message? 
-            // We just proceed if successful.
+
+            // Log success (optional)
         } catch (PDOException $ex) {
-            die("First Run Setup Failed: " . $ex->getMessage());
+            die("First Run Setup Failed (Schema Import): " . $ex->getMessage());
         }
     } else {
         die("Database not initialized and schema.sql not found.");

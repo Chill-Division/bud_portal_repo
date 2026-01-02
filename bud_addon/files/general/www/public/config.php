@@ -2,15 +2,21 @@
 // config.php
 // Database Configuration
 
-$db_host = getenv('DB_HOST') ?: 'localhost';
-$db_name = getenv('DB_NAME') ?: 'bud_inventory';
-$db_user = getenv('DB_USER') ?: 'root';
-$db_pass = getenv('DB_PASS') ?: '';
+$db_file = '/data/bud.db';
 
 try {
-    $pdo = new PDO("mysql:host=$db_host;dbname=$db_name;charset=utf8mb4", $db_user, $db_pass);
+    // Check if the directory exists (for non-container testing compatibility)
+    $db_dir = dirname($db_file);
+    if (!is_dir($db_dir) && $db_dir !== '/data') {
+        // Fallback for local testing if /data doesn't exist
+        $db_file = __DIR__ . '/database/bud_inventory.db';
+    }
+
+    $pdo = new PDO("sqlite:$db_file");
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    // Enable foreign keys for SQLite
+    $pdo->exec("PRAGMA foreign_keys = ON;");
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
