@@ -52,6 +52,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             Audit::log($pdo, 'stock_items', $id, 'UPDATE', $old, $_POST);
             $message = "Stock item updated.";
         }
+    } elseif ($action === 'adjust_stock') {
+        $id = $_POST['item_id'] ?? 0;
+        $operation = $_POST['operation'] ?? ''; // 'add' or 'subtract'
+        $quantity = floatval($_POST['quantity'] ?? 0);
+        $notes = $_POST['notes'] ?? '';
+
+        if ($quantity <= 0) {
+            $message = "Error: Quantity must be greater than 0.";
+        } else {
+            // Fetch current item
+            $stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+            $stmt->execute([$id]);
+            $item = $stmt->fetch();
+
+            if ($item) {
+                // Validation for subtract
+                if ($operation === 'subtract') {
+                    if ($item['is_controlled']) {
+                        $message = "Error: Controlled substances must be transferred via Chain of Custody.";
+                    } elseif ($item['quantity'] < $quantity) {
+                        $message = "Error: Cannot subtract more than available stock (" . $item['quantity'] . " " . $item['unit'] . " available).";
+                    } else {
+                        // Perform subtraction
+                        $new_qty = $item['quantity'] - $quantity;
+                        $stmt = $pdo->prepare("UPDATE stock_items SET quantity = ? WHERE id = ?");
+                        $stmt->execute([$new_qty, $id]);
+
+                        // Audit log
+                        $new_data = $item;
+                        $new_data['quantity'] = $new_qty;
+                        $new_data['adjustment_notes'] = $notes;
+                        Audit::log($pdo, 'stock_items', $id, 'UPDATE', $item, $new_data);
+                        $message = "Stock subtracted successfully. " . $quantity . " " . $item['unit'] . " removed.";
+                    }
+                } elseif ($operation === 'add') {
+                    // Perform addition
+                    $new_qty = $item['quantity'] + $quantity;
+                    $stmt = $pdo->prepare("UPDATE stock_items SET quantity = ? WHERE id = ?");
+                    $stmt->execute([$new_qty, $id]);
+
+                    // Audit log
+                    $new_data = $item;
+                    $new_data['quantity'] = $new_qty;
+                    $new_data['adjustment_notes'] = $notes;
+                    Audit::log($pdo, 'stock_items', $id, 'UPDATE', $item, $new_data);
+                    $message = "Stock added successfully. " . $quantity . " " . $item['unit'] . " added.";
+                }
+            } else {
+                $message = "Error: Item not found.";
+            }
+        }
     }
 }
 
@@ -171,8 +222,6 @@ $stock = $pdo->query("
                         <tr>
                             <th>SKU</th>
                             <th>Name</th>
-                            <th>Category</th>
-                            <th>Supplier</th>
                             <th>Qty</th>
                             <th>Ctrl?</th>
                             <th>Actions</th>
@@ -189,12 +238,6 @@ $stock = $pdo->query("
                                         <?= h($item['name']) ?>
                                     </strong></td>
                                 <td>
-                                    <?= h($item['category']) ?>
-                                </td>
-                                <td>
-                                    <?= h($item['supplier_name']) ?>
-                                </td>
-                                <td>
                                     <?= h(floatval($item['quantity'])) ?>
                                     <?= h($item['unit']) ?>
                                 </td>
@@ -202,13 +245,61 @@ $stock = $pdo->query("
                                     <?= $item['is_controlled'] ? '⚠️' : '' ?>
                                 </td>
                                 <td>
+                                    <button onclick='addStock(<?= json_encode($item) ?>)' class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #10b981; margin: 0.1rem;">+
+                                        Add</button>
+                                    <?php if (!$item['is_controlled']): ?>
+                                        <button onclick='subtractStock(<?= json_encode($item) ?>)' class="btn"
+                                            style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #ef4444; margin: 0.1rem;">-
+                                            Remove</button>
+                                    <?php endif; ?>
                                     <button onclick='editStock(<?= json_encode($item) ?>)' class="btn"
-                                        style="padding: 0.25rem 0.5rem; font-size: 0.8rem;">Edit</button>
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin: 0.1rem;">Edit</button>
+                                    <button onclick='viewHistory(<?= $item['id'] ?>, "<?= addslashes($item['name']) ?>")'
+                                        class="btn"
+                                        style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #6366f1; margin: 0.1rem;">📜</button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adjust Stock Modal -->
+    <div id="adjustModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 101; backdrop-filter: blur(5px);">
+        <div class="glass-panel" style="margin: 15vh auto; max-width: 400px; position: relative;">
+            <button onclick="document.getElementById('adjustModal').style.display='none'"
+                style="position: absolute; right: 1rem; top: 1rem; background: transparent; color: var(--text-color);">✕</button>
+            <h3 id="adjust_title">Adjust Stock</h3>
+            <p id="adjust_item_display"></p>
+            <form method="POST">
+                <input type="hidden" name="action" value="adjust_stock">
+                <input type="hidden" name="item_id" id="adjust_item_id">
+                <input type="hidden" name="operation" id="adjust_operation">
+
+                <label>Quantity to <span id="adjust_op_label"></span></label>
+                <input type="number" step="0.01" name="quantity" min="0.01" required>
+
+                <label>Notes</label>
+                <textarea name="notes" rows="2" placeholder="e.g. Damage, Restock..."></textarea>
+
+                <button type="submit" class="btn" id="adjust_submit_btn">Confirm</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 102; backdrop-filter: blur(5px);">
+        <div class="glass-panel" style="margin: 5vh auto; max-width: 600px; position: relative;">
+            <button onclick="document.getElementById('historyModal').style.display='none'"
+                style="position: absolute; right: 1rem; top: 1rem; background: transparent; color: var(--text-color);">✕</button>
+            <h3>Stock History: <span id="history_item_name"></span></h3>
+            <div id="history_content" style="max-height: 60vh; overflow-y: auto; margin-top: 1rem;">
+                <p>Loading history...</p>
             </div>
         </div>
     </div>
@@ -299,6 +390,58 @@ $stock = $pdo->query("
             document.getElementById('edit_is_controlled').checked = data.is_controlled == 1;
 
             document.getElementById('editModal').style.display = 'block';
+        }
+
+        function addStock(data) {
+            document.getElementById('adjust_title').innerText = 'Add Stock';
+            document.getElementById('adjust_op_label').innerText = 'add';
+            document.getElementById('adjust_operation').value = 'add';
+            document.getElementById('adjust_item_id').value = data.id;
+            document.getElementById('adjust_item_display').innerText = data.name + ' (' + data.quantity + ' ' + data.unit + ' current)';
+            document.getElementById('adjust_submit_btn').style.background = '#10b981';
+            document.getElementById('adjustModal').style.display = 'block';
+        }
+
+        function subtractStock(data) {
+            document.getElementById('adjust_title').innerText = 'Remove Stock';
+            document.getElementById('adjust_op_label').innerText = 'remove';
+            document.getElementById('adjust_operation').value = 'subtract';
+            document.getElementById('adjust_item_id').value = data.id;
+            document.getElementById('adjust_item_display').innerText = data.name + ' (' + data.quantity + ' ' + data.unit + ' current)';
+            document.getElementById('adjust_submit_btn').style.background = '#ef4444';
+            document.getElementById('adjustModal').style.display = 'block';
+        }
+
+        function viewHistory(id, name) {
+            document.getElementById('history_item_name').innerText = name;
+            document.getElementById('history_content').innerHTML = '<p>Loading history...</p>';
+            document.getElementById('historyModal').style.display = 'block';
+
+            fetch('get_stock_history.php?id=' + id)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        document.getElementById('history_content').innerHTML = '<p>No history found for this item.</p>';
+                        return;
+                    }
+                    let html = '<table style="font-size: 0.85rem;"><thead><tr><th>Date</th><th>Type</th><th>Change</th><th>Total</th><th>Notes</th></tr></thead><tbody>';
+                    data.forEach(row => {
+                        let diffColor = row.diff > 0 ? '#10b981' : (row.diff < 0 ? '#ef4444' : 'inherit');
+                        let diffSign = row.diff > 0 ? '+' : '';
+                        html += `<tr>
+                            <td><small>${row.timestamp}</small></td>
+                            <td>${row.type}</td>
+                            <td style="color: ${diffColor}; font-weight: bold;">${diffSign}${row.diff}</td>
+                            <td>${row.qty_new}</td>
+                            <td><small>${row.notes}</small></td>
+                        </tr>`;
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('history_content').innerHTML = html;
+                })
+                .catch(e => {
+                    document.getElementById('history_content').innerHTML = '<p>Error loading history.</p>';
+                });
         }
     </script>
 </body>

@@ -34,23 +34,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $item_id = $item_ids[$i];
                     $qty = $qtys[$i];
 
-                    // Get old stock data for audit
-                    $old_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
-                    $old_stock_stmt->execute([$item_id]);
-                    $old_stock = $old_stock_stmt->fetch();
+                    // Check if this is a bundle (prefixed with 'bundle_')
+                    if (strpos($item_id, 'bundle_') === 0) {
+                        // Extract bundle ID
+                        $bundle_id = str_replace('bundle_', '', $item_id);
 
-                    if ($old_stock) {
-                        // Update stock quantity
-                        $update_stmt = $pdo->prepare("UPDATE stock_items SET quantity = quantity - ? WHERE id = ?");
-                        $update_stmt->execute([$qty, $item_id]);
+                        // Fetch bundle components
+                        $bundle_components = $pdo->prepare("SELECT stock_item_id, quantity FROM bundle_items WHERE bundle_id = ?");
+                        $bundle_components->execute([$bundle_id]);
+                        $components = $bundle_components->fetchAll();
 
-                        // Get new stock data
-                        $new_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
-                        $new_stock_stmt->execute([$item_id]);
-                        $new_stock = $new_stock_stmt->fetch();
+                        // Deduct each component
+                        foreach ($components as $component) {
+                            $component_id = $component['stock_item_id'];
+                            $component_qty_per_bundle = $component['quantity'];
+                            $total_component_qty = $component_qty_per_bundle * $qty;
 
-                        // Log the stock deduction in audit
-                        Audit::log($pdo, 'stock_items', $item_id, 'UPDATE', $old_stock, $new_stock);
+                            // Get old stock data for audit
+                            $old_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+                            $old_stock_stmt->execute([$component_id]);
+                            $old_stock = $old_stock_stmt->fetch();
+
+                            if ($old_stock) {
+                                // Update stock quantity
+                                $update_stmt = $pdo->prepare("UPDATE stock_items SET quantity = quantity - ? WHERE id = ?");
+                                $update_stmt->execute([$total_component_qty, $component_id]);
+
+                                // Get new stock data
+                                $new_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+                                $new_stock_stmt->execute([$component_id]);
+                                $new_stock = $new_stock_stmt->fetch();
+
+                                // Log the stock deduction in audit
+                                Audit::log($pdo, 'stock_items', $component_id, 'UPDATE', $old_stock, $new_stock);
+                            }
+                        }
+                    } else {
+                        // Regular stock item deduction
+                        // Get old stock data for audit
+                        $old_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+                        $old_stock_stmt->execute([$item_id]);
+                        $old_stock = $old_stock_stmt->fetch();
+
+                        if ($old_stock) {
+                            // Update stock quantity
+                            $update_stmt = $pdo->prepare("UPDATE stock_items SET quantity = quantity - ? WHERE id = ?");
+                            $update_stmt->execute([$qty, $item_id]);
+
+                            // Get new stock data
+                            $new_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
+                            $new_stock_stmt->execute([$item_id]);
+                            $new_stock = $new_stock_stmt->fetch();
+
+                            // Log the stock deduction in audit
+                            Audit::log($pdo, 'stock_items', $item_id, 'UPDATE', $old_stock, $new_stock);
+                        }
                     }
                 }
             }
@@ -76,7 +114,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch History
 $history = $pdo->query("SELECT * FROM chain_of_custody ORDER BY created_at DESC LIMIT 50")->fetchAll();
-$stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE quantity > 0 ORDER BY name ASC")->fetchAll();
+// Fetch controlled substances only
+$stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE quantity > 0 AND is_controlled = 1 ORDER BY name ASC")->fetchAll();
+// Fetch bundles
+$bundle_options = $pdo->query("SELECT id, name, sku FROM product_bundles WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -147,11 +188,20 @@ $stock_options = $pdo->query("SELECT id, name, sku, unit FROM stock_items WHERE 
                     <div class="item-row grid" style="margin-bottom: 0.5rem;">
                         <div>
                             <select name="item_id[]" required>
-                                <option value="">Select Item</option>
-                                <?php foreach ($stock_options as $opt): ?>
-                                    <option value="<?= $opt['id'] ?>"><?= h($opt['name']) ?> (<?= h($opt['sku']) ?>)
-                                    </option>
-                                <?php endforeach; ?>
+                                <option value="">Select Item or Bundle</option>
+                                <optgroup label="⚠️ Controlled Substances">
+                                    <?php foreach ($stock_options as $opt): ?>
+                                        <option value="<?= $opt['id'] ?>"><?= h($opt['name']) ?> (<?= h($opt['sku']) ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
+                                <optgroup label="📦 Bundles">
+                                    <?php foreach ($bundle_options as $bundle): ?>
+                                        <option value="bundle_<?= $bundle['id'] ?>"><?= h($bundle['name']) ?>
+                                            (<?= h($bundle['sku']) ?>)
+                                        </option>
+                                    <?php endforeach; ?>
+                                </optgroup>
                             </select>
                         </div>
                         <div>

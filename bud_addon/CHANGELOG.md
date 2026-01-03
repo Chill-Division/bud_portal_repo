@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.11.0] - 2026-01-03
+### Added
+- **COC Bundle Integration**: Product bundles can now be selected in Chain of Custody forms. Sending a bundle automatically deducts all its component items from stock.
+- **Stock Action Enhancements**:
+    - **Quick Adjustments**: New "Add" and "Remove" action buttons on the Stock page for rapid inventory updates.
+    - **Validation**: System prevents removing more stock than available and enforces that Controlled Substances must only be removed via Chain of Custody forms.
+    - **Audit History**: New "📜 History" button for each stock item showing a detailed log of all quantity changes, including notes and context (e.g., if it was part of a bundle shipment).
+- **Filtered COC selection**: Chain of Custody item selection now only shows Controlled Substances by default to prevent accidental shipment of non-controlled items (like stickers) via COC forms.
+
+### Changed
+- **Stock UI Refinement**: Removed "Supplier" and "Category" columns from the main Stock Inventory table to improve readability and provide space for new action buttons.
+- **Dashboard**: Replaced placeholder references with proper scheduling links.
+
+### Technical
+- Added `get_stock_history.php` endpoint for fetching audit logs.
+- Updated `custody.php` backend to resolve bundle component IDs and handle automatic multi-item deductions.
+- Enforced `is_controlled` validation flag across adjustment pathways.
+
+
+
 ## [0.10.3] - 2026-01-03
 ### Changed
 - **Dashboard**: Fixed invalid references, removed old html file
