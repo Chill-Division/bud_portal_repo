@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.1] - 2026-01-03
+### Fixed
+- **Dropdown Styling**: Fixed readability of category labels (`optgroup`) in dark mode by ensuring they have the correct background and contrast.
+
+
+
 ## [0.11.0] - 2026-01-03
 ### Added
 - **COC Bundle Integration**: Product bundles can now be selected in Chain of Custody forms. Sending a bundle automatically deducts all its component items from stock.

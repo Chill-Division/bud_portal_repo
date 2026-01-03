@@ -115,9 +115,16 @@ nav ul {
 }
 
 /* Dark Mode Dropdown Fix */
-option {
+option,
+optgroup {
     background-color: var(--bg-color);
     color: var(--text-color);
+}
+
+optgroup {
+    font-weight: 800;
+    font-style: normal;
+    background-color: var(--card-bg);
 }
 
 /* Input Borders (Enforce in Light Mode too) */
