@@ -94,6 +94,10 @@ $stock = $pdo->query("
             + Add Stock Item
         </button>
 
+        <a href="bundles.php" class="btn" style="margin-bottom: 1rem; margin-left: 0.5rem; background: #6366f1;">
+            📦 Manage Bundles
+        </a>
+
         <div id="addForm" class="glass-panel" style="display: none; margin-bottom: 2rem;">
             <h3>New Stock Item</h3>
             <form method="POST">

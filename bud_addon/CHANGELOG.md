@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2] - 2026-01-03
+### Changed
+- **Navigation**: Moved Bundles link from main navigation to Stock page for better organization
+- **Dashboard**: Updated references from "Cleaning" to "Scheduling" to reflect current feature naming
+
+
+
 ## [0.10.1] - 2026-01-03
 ### Fixed
 - **Auto-Migration System**: Database schema now updates automatically on any page load. No manual migration required when upgrading to v0.10.
