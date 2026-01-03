@@ -65,9 +65,9 @@ try {
             </div>
 
             <div class="glass-panel">
-                <h3>🧹 Cleaning Logs</h3>
-                <p>View or complete scheduled cleaning tasks.</p>
-                <a href="cleaning.php" class="btn">Cleaning Schedule</a>
+                <h3>🗓️ Scheduling</h3>
+                <p>View or complete scheduled tasks.</p>
+                <a href="scheduling.php" class="btn">Scheduling</a>
             </div>
 
             <div class="glass-panel">
