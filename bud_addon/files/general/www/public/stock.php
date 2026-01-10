@@ -10,12 +10,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'create') {
         try {
-            $stmt = $pdo->prepare("INSERT INTO stock_items (supplier_id, name, sku, category, description, quantity, unit, reorder_level, is_controlled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO stock_items (name, sku, description, quantity, unit, reorder_level, is_controlled) VALUES (?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
-                $_POST['supplier_id'],
                 $_POST['name'],
                 $_POST['sku'],
-                $_POST['category'],
                 $_POST['description'],
                 $_POST['quantity'],
                 $_POST['unit'],
@@ -36,12 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $old = $stmt->fetch();
 
         if ($old) {
-            $stmt = $pdo->prepare("UPDATE stock_items SET supplier_id=?, name=?, sku=?, category=?, description=?, quantity=?, unit=?, reorder_level=?, is_controlled=? WHERE id=?");
+            $stmt = $pdo->prepare("UPDATE stock_items SET name=?, sku=?, description=?, quantity=?, unit=?, reorder_level=?, is_controlled=? WHERE id=?");
             $stmt->execute([
-                $_POST['supplier_id'],
                 $_POST['name'],
                 $_POST['sku'],
-                $_POST['category'],
                 $_POST['description'],
                 $_POST['quantity'],
                 $_POST['unit'],
@@ -109,10 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch Data
 $suppliers = $pdo->query("SELECT id, name FROM suppliers WHERE is_active = 1 ORDER BY name ASC")->fetchAll();
 $stock = $pdo->query("
-    SELECT s.*, sup.name as supplier_name 
-    FROM stock_items s 
-    LEFT JOIN suppliers sup ON s.supplier_id = sup.id 
-    ORDER BY s.name ASC
+    SELECT * 
+    FROM stock_items 
+    ORDER BY name ASC
 ")->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -162,29 +157,7 @@ $stock = $pdo->query("
                         <label>SKU</label>
                         <input type="text" name="sku">
                     </div>
-                    <div>
-                        <label>Supplier</label>
-                        <select name="supplier_id">
-                            <option value="">-- Select Supplier --</option>
-                            <?php foreach ($suppliers as $sup): ?>
-                                <option value="<?= $sup['id'] ?>">
-                                    <?= h($sup['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Category <span class="help-icon"
-                                title="Group items for easier reporting (e.g. Raw Materials vs Finished Products)">?</span></label>
-                        <select name="category">
-                            <option value="Raw Material">Raw Material</option>
-                            <option value="Finished Product">Finished Product</option>
-                            <option value="Packaging">Packaging</option>
-                            <option value="Sticker">Sticker</option>
-                            <option value="Insert">Insert</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
+
                 </div>
 
                 <div class="grid">
@@ -324,28 +297,7 @@ $stock = $pdo->query("
                         <label>SKU</label>
                         <input type="text" name="sku" id="edit_sku">
                     </div>
-                    <div>
-                        <label>Supplier</label>
-                        <select name="supplier_id" id="edit_supplier_id">
-                            <option value="">-- Select Supplier --</option>
-                            <?php foreach ($suppliers as $sup): ?>
-                                <option value="<?= $sup['id'] ?>">
-                                    <?= h($sup['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Category</label>
-                        <select name="category" id="edit_category">
-                            <option value="Raw Material">Raw Material</option>
-                            <option value="Finished Product">Finished Product</option>
-                            <option value="Packaging">Packaging</option>
-                            <option value="Sticker">Sticker</option>
-                            <option value="Insert">Insert</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
+
                 </div>
 
                 <div class="grid">
@@ -381,8 +333,6 @@ $stock = $pdo->query("
             document.getElementById('edit_id').value = data.id;
             document.getElementById('edit_name').value = data.name;
             document.getElementById('edit_sku').value = data.sku;
-            document.getElementById('edit_supplier_id').value = data.supplier_id;
-            document.getElementById('edit_category').value = data.category;
             document.getElementById('edit_quantity').value = data.quantity;
             document.getElementById('edit_unit').value = data.unit;
             document.getElementById('edit_reorder_level').value = data.reorder_level;

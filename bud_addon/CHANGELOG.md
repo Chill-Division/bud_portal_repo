@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.3] - 2026-01-10
+### Fixed
+- **UI Cleanup**: Completely removed obsolete "Supplier" and "Category" fields from the Add Stock and Edit Stock forms, ensuring a cleaner interface consistent with the table view.
+- **Documentation**: Added comprehensive `README.md` to the addon root directory.
+
+
+
 ## [0.11.2] - 2026-01-10
 ### Fixed
 - **Audit Logging**: Enhanced audit logs to include specific context when items are deducted. Stock history will now explicitly state if an item was removed as part of a Bundle shipment via COC, or as a direct single-item COC transfer.
