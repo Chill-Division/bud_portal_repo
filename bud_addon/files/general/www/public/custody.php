@@ -39,6 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Extract bundle ID
                         $bundle_id = str_replace('bundle_', '', $item_id);
 
+                        // Get Bundle Name for audit log
+                        $b_stmt = $pdo->prepare("SELECT name FROM product_bundles WHERE id = ?");
+                        $b_stmt->execute([$bundle_id]);
+                        $b_name = $b_stmt->fetchColumn();
+
                         // Fetch bundle components
                         $bundle_components = $pdo->prepare("SELECT stock_item_id, quantity FROM bundle_items WHERE bundle_id = ?");
                         $bundle_components->execute([$bundle_id]);
@@ -65,6 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $new_stock_stmt->execute([$component_id]);
                                 $new_stock = $new_stock_stmt->fetch();
 
+                                // Add context to audit log
+                                $new_stock['adjustment_notes'] = "Deducted via Bundle: $b_name (COC Shipment)";
+
                                 // Log the stock deduction in audit
                                 Audit::log($pdo, 'stock_items', $component_id, 'UPDATE', $old_stock, $new_stock);
                             }
@@ -85,6 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $new_stock_stmt = $pdo->prepare("SELECT * FROM stock_items WHERE id = ?");
                             $new_stock_stmt->execute([$item_id]);
                             $new_stock = $new_stock_stmt->fetch();
+
+                            // Add context
+                            $new_stock['adjustment_notes'] = "Sent via Chain of Custody";
 
                             // Log the stock deduction in audit
                             Audit::log($pdo, 'stock_items', $item_id, 'UPDATE', $old_stock, $new_stock);

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2] - 2026-01-10
+### Fixed
+- **Audit Logging**: Enhanced audit logs to include specific context when items are deducted. Stock history will now explicitly state if an item was removed as part of a Bundle shipment via COC, or as a direct single-item COC transfer.
+- **Documentation**: Updated project README to correctly reflect the SQLite architecture and remove obsolete MariaDB references.
+
+
+
 ## [0.11.1] - 2026-01-03
 ### Fixed
 - **Dropdown Styling**: Fixed readability of category labels (`optgroup`) in dark mode by ensuring they have the correct background and contrast.
