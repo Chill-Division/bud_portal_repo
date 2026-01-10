@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0] - 2026-01-10
+### Added
+- **Ad-hoc Tasks**: Added support for "Once-off" tasks in Scheduling. These tasks appear in the "Due" list until completed once, then disappear (are not rescheduled).
+- **Global History Viewer**: Added a new "View Task History" button on the Scheduling page. This opens a modal where you can view the last 5, 25, or 100 completed tasks across all schedules.
+- **Auto-Migration (v0.12)**: System automatically updates the database schema to support the new 'Once-off' frequency option.
+
+
+
 ## [0.11.3] - 2026-01-10
 ### Fixed
 - **UI Cleanup**: Completely removed obsolete "Supplier" and "Category" fields from the Add Stock and Edit Stock forms, ensuring a cleaner interface consistent with the table view.

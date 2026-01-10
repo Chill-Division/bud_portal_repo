@@ -47,6 +47,14 @@ try {
             )
         ");
     }
+
+    // Check for v0.12 schema (Once-off frequency support)
+    $stmt = $pdo->query("SELECT sql FROM sqlite_master WHERE name='cleaning_schedules'");
+    $schema = $stmt->fetchColumn();
+    // If table exists but schema doesn't have 'Once-off' in the Check constraint
+    if ($schema && strpos($schema, 'Once-off') === false) {
+        require_once 'migrate_v0.12.php';
+    }
 } catch (PDOException $e) {
     die("Database connection failed: " . $e->getMessage());
 }
