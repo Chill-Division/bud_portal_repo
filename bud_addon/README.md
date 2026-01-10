@@ -82,3 +82,26 @@ To add new tables, update the schema array in `config.php`.
 
 ### Versioning
 -   See `CHANGELOG.md` for release history.
+
+## 🤖 Developer / AI Contributor Notes
+
+> [!IMPORTANT]
+> **READ THIS BEFORE MAKING CHANGES**
+
+### Live Deployments
+This application is deployed in **live production environments**. Destructive changes or experimental features must be carefully gated or tested.
+
+### Database Migrations
+*   **Zero-Interaction Updates**: End-users (often non-technical) running this as a Home Assistant addon **cannot** manually browse to a URL to trigger database updates.
+*   **Automatic & Sequential**: All schema changes must happen **automatically** upon application startup (via `config.php`).
+*   **Pattern**:
+    1.  Check if a specific table or column exists in `config.php`.
+    2.  If missing/outdated, `require_once` the specific migration script (e.g., `migrate_v0.12.php`).
+    3.  Migrations must be designed to run continuously/idempotently or have strict checks to run only once.
+    4.  **Do not** break the chain. Version N should safely upgrade to N+1.
+
+### Design Principles
+*   **SQLite**: Chosen for zero-configuration portability within Docker/Home Assistant.
+*   **Native Stack**: The app is designed to be lightweight and "drop-in" without a complex build step (No Composer/NPM required for runtime).
+*   **Auditing**: Almost every write action (Stock/Schedule) is logged to `audit_log` for accountability. Preserving this history during migrations or logic updates is **critical**.
+
