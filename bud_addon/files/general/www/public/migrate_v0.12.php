@@ -3,6 +3,9 @@
 // Migration for Version 0.12.0
 // Goal: Add 'Once-off' to cleaning_schedules frequency check constraint
 
+// Disable foreign keys to allow table rename/drop
+$pdo->exec("PRAGMA foreign_keys = OFF");
+
 try {
     $pdo->beginTransaction();
 
@@ -27,12 +30,19 @@ try {
     $pdo->exec("DROP TABLE cleaning_schedules_old");
 
     $pdo->commit();
+    
+    // Re-enable foreign keys
+    $pdo->exec("PRAGMA foreign_keys = ON");
+
     error_log("Migration v0.12 successful: Added 'Once-off' frequency support.");
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    // Re-enable foreign keys even on failure
+    $pdo->exec("PRAGMA foreign_keys = ON");
+
     error_log("Migration v0.12 failed: " . $e->getMessage());
     die("Migration v0.12 failed: " . $e->getMessage());
 }

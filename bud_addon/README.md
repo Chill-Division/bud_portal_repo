@@ -105,3 +105,14 @@ This application is deployed in **live production environments**. Destructive ch
 *   **Native Stack**: The app is designed to be lightweight and "drop-in" without a complex build step (No Composer/NPM required for runtime).
 *   **Auditing**: Almost every write action (Stock/Schedule) is logged to `audit_log` for accountability. Preserving this history during migrations or logic updates is **critical**.
 
+
+### Addon Limitations
+**Manual File Access**: Because this runs as a Home Assistant Addon in a sealed container, you cannot manually access or execute PHP files (e.g., `php migrate_v0.12.php`) from the terminal. All migrations must run automatically via the application's entry points (`config.php`).
+
+### Versioning & Updates
+This project follows [Semantic Versioning](https://semver.org/).
+- **Patch (x.x.X)**: Bug fixes, minor improvements.
+- **Minor (x.X.x)**: New features, non-breaking changes.
+- **Major (X.x.x)**: Breaking changes.
+
+**Important**: When updating the addon, you **MUST** bump the `version` key in `config.yaml` and update `CHANGELOG.md`. Home Assistant relies on the version in `config.yaml` to detect updates.

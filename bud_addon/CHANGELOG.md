@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.12.1] - 2026-02-04
+### Fixed
+- **Migration v0.12**: Fixed Database Locked / Foreign Key violation error during migration by temporarily disabling foreign key checks.
+
 ## [0.12.0] - 2026-01-10
 ### Added
 - **Ad-hoc Tasks**: Added support for "Once-off" tasks in Scheduling. These tasks appear in the "Due" list until completed once, then disappear (are not rescheduled).
