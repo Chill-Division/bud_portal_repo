@@ -18,6 +18,8 @@ try {
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     // Enable foreign keys for SQLite
     $pdo->exec("PRAGMA foreign_keys = ON;");
+    // Set busy timeout to 5 seconds to handle concurrency
+    $pdo->exec("PRAGMA busy_timeout = 5000;");
 
     // Auto-migration: Ensure database schema is up-to-date
     // Check if product_bundles table exists (v0.10)
@@ -51,6 +53,9 @@ try {
     // Check for v0.12 schema (Once-off frequency support)
     $stmt = $pdo->query("SELECT sql FROM sqlite_master WHERE name='cleaning_schedules'");
     $schema = $stmt->fetchColumn();
+    // Close the cursor to prevent 'database table is locked' error during migration
+    $stmt = null;
+    
     // If table exists but schema doesn't have 'Once-off' in the Check constraint
     if ($schema && strpos($schema, 'Once-off') === false) {
         require_once 'migrate_v0.12.php';

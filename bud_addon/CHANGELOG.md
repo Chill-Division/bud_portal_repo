@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.12.2] - 2026-02-04
+### Fixed
+- **Database Lock**: Added `busy_timeout` and explicitly closed database cursors before running migrations to prevent `SQLITE_LOCKED` errors.
+
 ## [0.12.1] - 2026-02-04
 ### Fixed
 - **Migration v0.12**: Fixed Database Locked / Foreign Key violation error during migration by temporarily disabling foreign key checks.
