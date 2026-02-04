@@ -46,9 +46,12 @@ try {
                 quantity DECIMAL(10, 2) NOT NULL,
                 FOREIGN KEY (bundle_id) REFERENCES product_bundles(id) ON DELETE CASCADE,
                 FOREIGN KEY (stock_item_id) REFERENCES stock_items(id) ON DELETE CASCADE
+                FOREIGN KEY (stock_item_id) REFERENCES stock_items(id) ON DELETE CASCADE
             )
         ");
     }
+    // Close the cursor to prevent lock
+    $tables_check = null;
 
     // Check for v0.12 schema (Once-off frequency support)
     $stmt = $pdo->query("SELECT sql FROM sqlite_master WHERE name='cleaning_schedules'");

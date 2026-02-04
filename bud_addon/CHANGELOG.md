@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.12.3] - 2026-02-04
+### Fixed
+- **Database Lock**: Fixed remaining `SQLITE_LOCKED` error by ensuring *all* schema check cursors (`tables_check`) are closed before migration runs.
+
 ## [0.12.2] - 2026-02-04
 ### Fixed
 - **Database Lock**: Added `busy_timeout` and explicitly closed database cursors before running migrations to prevent `SQLITE_LOCKED` errors.
