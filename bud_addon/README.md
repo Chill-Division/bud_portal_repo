@@ -106,7 +106,12 @@ This application is deployed in **live production environments**. Destructive ch
 *   **Auditing**: Almost every write action (Stock/Schedule) is logged to `audit_log` for accountability. Preserving this history during migrations or logic updates is **critical**.
 
 
-### Addon Limitations
+### Common Issues & Troubleshooting
+
+#### Database Locked (SQLSTATE[HY000]: General error: 6)
+If you encounter a "database table is locked" error during migration/startup, it is likely due to an **open PDO cursor** on the same connection.
+*   **Cause**: Checking for a table or schema version via `SELECT` (e.g., in `config.php`) keeps a read cursor open. If you then try to `ALTER TABLE` or `VACUUM` on the same `$pdo` connection, SQLite will block the write to prevent corruption.
+*   **Fix**: Explicitly close the cursor variable before running any schema changes: ` $stmt = null; `
 **Manual File Access**: Because this runs as a Home Assistant Addon in a sealed container, you cannot manually access or execute PHP files (e.g., `php migrate_v0.12.php`) from the terminal. All migrations must run automatically via the application's entry points (`config.php`).
 
 ### Versioning & Updates
