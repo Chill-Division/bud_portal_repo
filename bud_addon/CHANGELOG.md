@@ -1,7 +1,9 @@
 # Changelog
+## [0.13.3]
+- **Reporting fix**: Corrected reports to include ControlledComponents()
+
 ## [0.13.2]
 - **Edit fix**: Another fix
-
 
 ## [0.13.1] - 2026-03-04
 ### Fixed

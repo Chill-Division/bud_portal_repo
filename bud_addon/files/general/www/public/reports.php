@@ -10,40 +10,55 @@ $end_date = date("Y-m-t", strtotime($start_date));
 
 // ── 1. Build controlled substance ID set ──────────────────────────────────────
 // For plain stock items: filter by is_controlled = 1
-// For bundles: treat as controlled if any component is a controlled stock item
+// For bundles: expand into individual controlled components when reporting
 $controlled_ids_stmt = $pdo->query("SELECT id FROM stock_items WHERE is_controlled = 1");
 $controlled_ids = array_column($controlled_ids_stmt->fetchAll(), 'id');
 $controlled_id_set = array_flip($controlled_ids);
 
-// Bundle lookup: for display and controlled-check
-$all_bundles_stmt = $pdo->query("
-    SELECT pb.id, pb.name, pb.sku,
-           GROUP_CONCAT(bi.stock_item_id) AS component_ids
-    FROM product_bundles pb
-    LEFT JOIN bundle_items bi ON bi.bundle_id = pb.id
-    GROUP BY pb.id
-");
-$all_bundles = $all_bundles_stmt->fetchAll();
-$bundle_name_map = [];
-$bundle_controlled = [];
-foreach ($all_bundles as $b) {
-    $bundle_name_map[$b['id']] = $b['name'] . ' (' . $b['sku'] . ')';
-    $comp_ids = $b['component_ids'] ? explode(',', $b['component_ids']) : [];
-    // Bundle is "controlled" if at least one component is controlled
-    $bundle_controlled[$b['id']] = false;
-    foreach ($comp_ids as $cid) {
-        if (isset($controlled_id_set[intval($cid)])) {
-            $bundle_controlled[$b['id']] = true;
-            break;
-        }
-    }
+// Stock item full map (id => details)
+$all_stock_stmt = $pdo->query("SELECT id, name, sku, unit FROM stock_items");
+$stock_item_map = [];
+foreach ($all_stock_stmt->fetchAll() as $s) {
+    $stock_item_map[$s['id']] = $s;
+}
+$stock_name_map = [];
+foreach ($stock_item_map as $id => $s) {
+    $stock_name_map[$id] = $s['name'] . ' (' . $s['sku'] . ')';
 }
 
-// Stock item name map
-$all_stock_stmt = $pdo->query("SELECT id, name, sku FROM stock_items");
-$stock_name_map = [];
-foreach ($all_stock_stmt->fetchAll() as $s) {
-    $stock_name_map[$s['id']] = $s['name'] . ' (' . $s['sku'] . ')';
+// Bundle lookup: name map, controlled flag, and full component details
+// Each bundle row in the JOIN represents one component; we build up per-bundle arrays.
+$all_bundles_stmt = $pdo->query("
+    SELECT pb.id, pb.name, pb.sku,
+           bi.stock_item_id, bi.quantity AS component_qty
+    FROM product_bundles pb
+    LEFT JOIN bundle_items bi ON bi.bundle_id = pb.id
+");
+$bundle_name_map   = [];
+$bundle_controlled = [];
+$bundle_components = []; // bundle_id => [ ['stock_item_id'=>, 'qty'=>, 'is_controlled'=>, 'name'=>], ... ]
+
+foreach ($all_bundles_stmt->fetchAll() as $row) {
+    $bid = $row['id'];
+    $bundle_name_map[$bid] = $row['name'] . ' (' . $row['sku'] . ')';
+    if (!isset($bundle_components[$bid])) {
+        $bundle_components[$bid] = [];
+        $bundle_controlled[$bid] = false;
+    }
+    if ($row['stock_item_id']) {
+        $sid       = (int) $row['stock_item_id'];
+        $is_ctrl   = isset($controlled_id_set[$sid]);
+        $comp_name = $stock_name_map[$sid] ?? ('Item #' . $sid);
+        $bundle_components[$bid][] = [
+            'stock_item_id' => $sid,
+            'qty'           => floatval($row['component_qty']),
+            'is_controlled' => $is_ctrl,
+            'name'          => $comp_name,
+        ];
+        if ($is_ctrl) {
+            $bundle_controlled[$bid] = true;
+        }
+    }
 }
 
 function resolveItemName($item_id, $bundle_name_map, $stock_name_map)
@@ -62,6 +77,45 @@ function isItemControlled($item_id, $controlled_id_set, $bundle_controlled)
         return $bundle_controlled[$bid] ?? false;
     }
     return isset($controlled_id_set[(int) $item_id]);
+}
+
+/**
+ * Expand a COC line item into individual controlled-substance report rows.
+ *
+ * For plain controlled stock items this returns a single row.
+ * For bundles this returns one row per controlled component, with the
+ * component quantity multiplied by the number of bundles dispatched,
+ * and a "via bundle" note appended to the product name.
+ *
+ * Returns: array of ['name' => string, 'qty' => float, 'bundle' => string|null]
+ */
+function expandControlledComponents($item_id, $dispatch_qty, $controlled_id_set, $bundle_controlled, $bundle_components, $bundle_name_map, $stock_name_map)
+{
+    $rows = [];
+
+    if (strpos($item_id, 'bundle_') === 0) {
+        $bid = (int) str_replace('bundle_', '', $item_id);
+        if (!($bundle_controlled[$bid] ?? false)) {
+            return $rows; // bundle has no controlled components
+        }
+        $bname = $bundle_name_map[$bid] ?? ('Bundle #' . $bid);
+        foreach ($bundle_components[$bid] ?? [] as $comp) {
+            if (!$comp['is_controlled']) continue;
+            $rows[] = [
+                'name'   => $comp['name'] . ' [via ' . $bname . ']',
+                'qty'    => $comp['qty'] * floatval($dispatch_qty),
+                'bundle' => $bname,
+            ];
+        }
+    } elseif (isset($controlled_id_set[(int) $item_id])) {
+        $rows[] = [
+            'name'   => $stock_name_map[(int) $item_id] ?? $item_id,
+            'qty'    => floatval($dispatch_qty),
+            'bundle' => null,
+        ];
+    }
+
+    return $rows;
 }
 
 // ── 2. Materials Out (Controlled only, completed transfers) ───────────────────
@@ -84,20 +138,33 @@ foreach ($transfers_out as $t) {
         foreach ($items as $item) {
             if (!isItemControlled($item['item_id'], $controlled_id_set, $bundle_controlled))
                 continue;
-            $resolved_name = resolveItemName($item['item_id'], $bundle_name_map, $stock_name_map);
-            $report_items[] = [
-                'date' => $t['form_date'],
-                'destination' => $t['destination'],
-                'item_name' => $resolved_name,
-                'qty' => $item['qty'],
-            ];
-            $mca_rows[] = [
-                'date' => $t['form_date'],
-                'pharmacy' => $t['destination'],
-                'address' => $t['receiver_address'] ?? '',
-                'product' => $resolved_name,
-                'qty' => $item['qty'],
-            ];
+
+            // Expand bundles into their individual controlled components
+            $expanded = expandControlledComponents(
+                $item['item_id'],
+                $item['qty'],
+                $controlled_id_set,
+                $bundle_controlled,
+                $bundle_components,
+                $bundle_name_map,
+                $stock_name_map
+            );
+
+            foreach ($expanded as $exp) {
+                $report_items[] = [
+                    'date'        => $t['form_date'],
+                    'destination' => $t['destination'],
+                    'item_name'   => $exp['name'],
+                    'qty'         => $exp['qty'],
+                ];
+                $mca_rows[] = [
+                    'date'     => $t['form_date'],
+                    'pharmacy' => $t['destination'],
+                    'address'  => $t['receiver_address'] ?? '',
+                    'product'  => $exp['name'],
+                    'qty'      => $exp['qty'],
+                ];
+            }
         }
     }
 }
@@ -138,8 +205,8 @@ foreach ($logs_in as $log) {
         $materials_in[] = [
             'date' => date('Y-m-d H:i', strtotime($log['timestamp'])),
             'name' => $new['name'] ?? 'Unknown',
-            'sku' => $new['sku'] ?? '-',
-            'qty' => $qty_in,
+            'sku'  => $new['sku'] ?? '-',
+            'qty'  => $qty_in,
             'unit' => $new['unit'] ?? '',
         ];
     }
@@ -151,7 +218,7 @@ for ($m = 1; $m <= 12; $m++) {
     $m_str = str_pad($m, 2, '0', STR_PAD_LEFT);
     $ym = "$selected_year-$m_str";
 
-    // Out (COC - controlled items)
+    // Out (COC - controlled items, bundles expanded to component quantities)
     $stmt_out = $pdo->prepare("SELECT coc_items FROM chain_of_custody WHERE form_date LIKE ? AND status = 'Completed'");
     $stmt_out->execute(["$ym%"]);
     $rows_out = $stmt_out->fetchAll();
@@ -159,8 +226,18 @@ for ($m = 1; $m <= 12; $m++) {
     foreach ($rows_out as $r) {
         $its = json_decode($r['coc_items'], true) ?: [];
         foreach ($its as $i) {
-            if (isItemControlled($i['item_id'], $controlled_id_set, $bundle_controlled)) {
-                $total_out += floatval($i['qty'] ?? 0);
+            // Expand bundles so only controlled component quantities are counted
+            $expanded = expandControlledComponents(
+                $i['item_id'],
+                $i['qty'] ?? 0,
+                $controlled_id_set,
+                $bundle_controlled,
+                $bundle_components,
+                $bundle_name_map,
+                $stock_name_map
+            );
+            foreach ($expanded as $exp) {
+                $total_out += $exp['qty'];
             }
         }
     }
@@ -230,7 +307,7 @@ for ($m = 1; $m <= 12; $m++) {
         </div>
 
         <p style="color: var(--text-muted, #aaa); font-size: 0.85rem; margin-bottom: 1.5rem; margin-top: -1rem;">
-            ⚠️ All figures show <strong>controlled substances only</strong>.
+            ⚠️ All figures show <strong>controlled substances only</strong>. Bundle quantities are expanded to their individual controlled components.
         </p>
 
         <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
