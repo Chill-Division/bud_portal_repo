@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.13.0] - 2026-03-04
+### Added
+- **Two-Phase Chain of Custody**: Split the CoC process into "Initiate Transfer" (shipment) and "Complete Transfer" (receipt).
+- **Verified Receivers**: New management page to pre-register destinations and contact persons.
+- **Packing Slips**: Ability to print professional packing slips for "In Progress" transfers, including receiver addresses and resolved item names.
+- **MCA Report**: New regulatory report section in the MoH/MCA format with CSV export capability.
+- **Interim Schema Upgrade**: Added an "Upgrade to v0.13 Schema" button in the Admin Dashboard to backfill receiver data and update the database structure.
+
+### Changed
+- **CoC Form**: Replaced destination text input with a dropdown from verified receivers.
+- **CoC Signature**: Moved signature capture from the initiation phase to the completion phase.
+- **Reports Filtering**: Materials In, Materials Out, and Yearly Overview now show **controlled substances only**.
+- **Item Resolution**: Chain of Custody views now resolve bundle IDs into human-readable product name and SKU.
+
+### Fixed
+- **Bundle Display**: Fixed an issue where "bundle_1" was displayed instead of the actual bundle name in CoC records.
+
 ## [0.12.3] - 2026-02-04
 ### Fixed
 - **Database Lock**: Fixed remaining `SQLITE_LOCKED` error by ensuring *all* schema check cursors (`tables_check`) are closed before migration runs.
