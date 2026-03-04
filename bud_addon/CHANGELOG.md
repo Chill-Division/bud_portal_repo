@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.1] - 2026-03-04
+### Fixed
+- **Registered Receivers**: Fixed a syntax error in the Edit functionality caused by unescaped receiver data.
+
+### Changed
+- **Reports**: Enhanced Materials Out and MCA reports to expand product bundles into their constituent controlled substances.
+
+
 ## [0.13.0] - 2026-03-04
 ### Added
 - **Two-Phase Chain of Custody**: Split the CoC process into "Initiate Transfer" (shipment) and "Complete Transfer" (receipt).
