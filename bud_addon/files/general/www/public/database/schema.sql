@@ -80,13 +80,15 @@ CREATE TABLE IF NOT EXISTS chain_of_custody (
   form_date DATE NOT NULL,
   origin TEXT DEFAULT 'Main Facility',
   destination TEXT NOT NULL,
+  receiver_id INTEGER,
   transported_by TEXT NOT NULL,
   received_by TEXT,
   coc_items JSON NOT NULL,
   signature_image TEXT,
-  status TEXT DEFAULT 'In Transit',
+  status TEXT DEFAULT 'In Progress',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  completed_at DATETIME
+  completed_at DATETIME,
+  FOREIGN KEY (receiver_id) REFERENCES verified_receivers(id) ON DELETE SET NULL
 );
 
 -- 8. Reports
@@ -116,6 +118,18 @@ CREATE TABLE IF NOT EXISTS bundle_items (
   quantity DECIMAL(10, 2) NOT NULL,
   FOREIGN KEY (bundle_id) REFERENCES product_bundles(id) ON DELETE CASCADE,
   FOREIGN KEY (stock_item_id) REFERENCES stock_items(id) ON DELETE CASCADE
+);
+
+-- 11. Verified Receivers
+CREATE TABLE IF NOT EXISTS verified_receivers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  contact_person TEXT,
+  address TEXT,
+  phone TEXT,
+  notes TEXT,
+  is_active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 COMMIT;

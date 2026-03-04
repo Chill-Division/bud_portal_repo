@@ -5,52 +5,111 @@ $message = '';
 $selected_month = $_GET['month'] ?? date('Y-m');
 $selected_year = $_GET['year'] ?? date('Y');
 
-// Handle Report Generation (Materials Out - Monthly)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['generate_report'])) {
-    // ... (Existing logic for report snapshotting can go here or remain separate)
-}
-
-// 1. DATA GATHERING
-
-// A. Materials Out (Controlled Substances only, or all? User asked for "all materials in" but context implies controlled usually. Let's do ALL for the aggregate, and Controlled for the specific report)
-// For the "Monthly Materials Out" specific report:
 $start_date = "$selected_month-01";
 $end_date = date("Y-m-t", strtotime($start_date));
 
+// ── 1. Build controlled substance ID set ──────────────────────────────────────
+// For plain stock items: filter by is_controlled = 1
+// For bundles: treat as controlled if any component is a controlled stock item
+$controlled_ids_stmt = $pdo->query("SELECT id FROM stock_items WHERE is_controlled = 1");
+$controlled_ids = array_column($controlled_ids_stmt->fetchAll(), 'id');
+$controlled_id_set = array_flip($controlled_ids);
+
+// Bundle lookup: for display and controlled-check
+$all_bundles_stmt = $pdo->query("
+    SELECT pb.id, pb.name, pb.sku,
+           GROUP_CONCAT(bi.stock_item_id) AS component_ids
+    FROM product_bundles pb
+    LEFT JOIN bundle_items bi ON bi.bundle_id = pb.id
+    GROUP BY pb.id
+");
+$all_bundles = $all_bundles_stmt->fetchAll();
+$bundle_name_map = [];
+$bundle_controlled = [];
+foreach ($all_bundles as $b) {
+    $bundle_name_map[$b['id']] = $b['name'] . ' (' . $b['sku'] . ')';
+    $comp_ids = $b['component_ids'] ? explode(',', $b['component_ids']) : [];
+    // Bundle is "controlled" if at least one component is controlled
+    $bundle_controlled[$b['id']] = false;
+    foreach ($comp_ids as $cid) {
+        if (isset($controlled_id_set[intval($cid)])) {
+            $bundle_controlled[$b['id']] = true;
+            break;
+        }
+    }
+}
+
+// Stock item name map
+$all_stock_stmt = $pdo->query("SELECT id, name, sku FROM stock_items");
+$stock_name_map = [];
+foreach ($all_stock_stmt->fetchAll() as $s) {
+    $stock_name_map[$s['id']] = $s['name'] . ' (' . $s['sku'] . ')';
+}
+
+function resolveItemName($item_id, $bundle_name_map, $stock_name_map)
+{
+    if (strpos($item_id, 'bundle_') === 0) {
+        $bid = (int) str_replace('bundle_', '', $item_id);
+        return $bundle_name_map[$bid] ?? $item_id;
+    }
+    return $stock_name_map[(int) $item_id] ?? $item_id;
+}
+
+function isItemControlled($item_id, $controlled_id_set, $bundle_controlled)
+{
+    if (strpos($item_id, 'bundle_') === 0) {
+        $bid = (int) str_replace('bundle_', '', $item_id);
+        return $bundle_controlled[$bid] ?? false;
+    }
+    return isset($controlled_id_set[(int) $item_id]);
+}
+
+// ── 2. Materials Out (Controlled only, completed transfers) ───────────────────
 $coc_out = $pdo->prepare("
-    SELECT * FROM chain_of_custody 
-    WHERE form_date BETWEEN ? AND ? 
-    AND status = 'Completed'
-    ORDER BY form_date ASC
+    SELECT c.*, vr.address AS receiver_address
+    FROM chain_of_custody c
+    LEFT JOIN verified_receivers vr ON vr.id = c.receiver_id
+    WHERE c.form_date BETWEEN ? AND ?
+    AND c.status = 'Completed'
+    ORDER BY c.form_date ASC
 ");
 $coc_out->execute([$start_date, $end_date]);
 $transfers_out = $coc_out->fetchAll();
 
 $report_items = [];
+$mca_rows = [];
 foreach ($transfers_out as $t) {
     $items = json_decode($t['coc_items'], true);
     if ($items) {
         foreach ($items as $item) {
-            // Check if controlled (optional filtering, but we'll list all for now or filter visually)
+            if (!isItemControlled($item['item_id'], $controlled_id_set, $bundle_controlled))
+                continue;
+            $resolved_name = resolveItemName($item['item_id'], $bundle_name_map, $stock_name_map);
             $report_items[] = [
                 'date' => $t['form_date'],
                 'destination' => $t['destination'],
-                'item' => $item
+                'item_name' => $resolved_name,
+                'qty' => $item['qty'],
+            ];
+            $mca_rows[] = [
+                'date' => $t['form_date'],
+                'pharmacy' => $t['destination'],
+                'address' => $t['receiver_address'] ?? '',
+                'product' => $resolved_name,
+                'qty' => $item['qty'],
             ];
         }
     }
 }
 
-// B. Materials In (Audit Log Analysis)
-// Look for INSERTs on stock_items, or UPDATEs where quantity increased
+// ── 3. Materials In (Controlled stock items only, audit log) ──────────────────
 $audit_in = $pdo->prepare("
-    SELECT * FROM audit_log 
-    WHERE table_name = 'stock_items' 
-    AND action IN ('INSERT', 'UPDATE')
-    AND timestamp BETWEEN ? AND ?
-    ORDER BY timestamp ASC
+    SELECT al.* FROM audit_log al
+    WHERE al.table_name = 'stock_items'
+    AND al.action IN ('INSERT', 'UPDATE')
+    AND al.timestamp BETWEEN ? AND ?
+    ORDER BY al.timestamp ASC
 ");
-// Use full timestamp range for the month
 $audit_in->execute(["$start_date 00:00:00", "$end_date 23:59:59"]);
 $logs_in = $audit_in->fetchAll();
 
@@ -59,8 +118,12 @@ foreach ($logs_in as $log) {
     $new = json_decode($log['new_values'], true);
     $old = json_decode($log['old_values'], true);
 
-    $qty_in = 0;
+    // Only include controlled items
+    $record_id = $log['record_id'];
+    if (!isset($controlled_id_set[$record_id]))
+        continue;
 
+    $qty_in = 0;
     if ($log['action'] === 'INSERT') {
         $qty_in = floatval($new['quantity'] ?? 0);
     } elseif ($log['action'] === 'UPDATE') {
@@ -77,39 +140,42 @@ foreach ($logs_in as $log) {
             'name' => $new['name'] ?? 'Unknown',
             'sku' => $new['sku'] ?? '-',
             'qty' => $qty_in,
-            'unit' => $new['unit'] ?? ''
+            'unit' => $new['unit'] ?? '',
         ];
     }
 }
 
-// C. 12-Month In/Out Overview
+// ── 4. 12-Month Overview (Controlled only) ────────────────────────────────────
 $yearly_stats = [];
 for ($m = 1; $m <= 12; $m++) {
     $m_str = str_pad($m, 2, '0', STR_PAD_LEFT);
     $ym = "$selected_year-$m_str";
 
-    // Out (COC)
+    // Out (COC - controlled items)
     $stmt_out = $pdo->prepare("SELECT coc_items FROM chain_of_custody WHERE form_date LIKE ? AND status = 'Completed'");
     $stmt_out->execute(["$ym%"]);
     $rows_out = $stmt_out->fetchAll();
-
     $total_out = 0;
     foreach ($rows_out as $r) {
-        $its = json_decode($r['coc_items'], true);
-        foreach ($its as $i)
-            $total_out += floatval($i['qty'] ?? 0);
+        $its = json_decode($r['coc_items'], true) ?: [];
+        foreach ($its as $i) {
+            if (isItemControlled($i['item_id'], $controlled_id_set, $bundle_controlled)) {
+                $total_out += floatval($i['qty'] ?? 0);
+            }
+        }
     }
 
-    // In (Audit)
-    $stmt_in = $pdo->prepare("SELECT action, old_values, new_values FROM audit_log WHERE table_name = 'stock_items' AND timestamp LIKE ?");
+    // In (Audit - controlled items only)
+    $stmt_in = $pdo->prepare("SELECT al.action, al.old_values, al.new_values, al.record_id
+        FROM audit_log al WHERE al.table_name = 'stock_items' AND al.timestamp LIKE ?");
     $stmt_in->execute(["$ym%"]);
     $rows_in = $stmt_in->fetchAll();
-
     $total_in = 0;
     foreach ($rows_in as $r) {
+        if (!isset($controlled_id_set[$r['record_id']]))
+            continue;
         $nv = json_decode($r['new_values'], true);
         $ov = json_decode($r['old_values'], true);
-
         if ($r['action'] === 'INSERT') {
             $total_in += floatval($nv['quantity'] ?? 0);
         } elseif ($r['action'] === 'UPDATE') {
@@ -122,7 +188,6 @@ for ($m = 1; $m <= 12; $m++) {
 
     $yearly_stats[$m] = ['in' => $total_in, 'out' => $total_out];
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -132,6 +197,7 @@ for ($m = 1; $m <= 12; $m++) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= APP_NAME ?> - Reports</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -142,7 +208,7 @@ for ($m = 1; $m <= 12; $m++) {
 
         <!-- Controls -->
         <div class="glass-panel" style="margin-bottom: 2rem;">
-            <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end;">
+            <form method="GET" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
                 <div>
                     <label>Report Month</label>
                     <input type="month" name="month" value="<?= h($selected_month) ?>">
@@ -163,14 +229,18 @@ for ($m = 1; $m <= 12; $m++) {
             </form>
         </div>
 
+        <p style="color: var(--text-muted, #aaa); font-size: 0.85rem; margin-bottom: 1.5rem; margin-top: -1rem;">
+            ⚠️ All figures show <strong>controlled substances only</strong>.
+        </p>
+
         <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
 
-            <!-- Materials IN (Month) -->
+            <!-- Materials IN -->
             <div class="glass-panel">
                 <h3>📥 Materials In (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
-                <p><small>Based on Inventory Logs</small></p>
+                <p><small>Controlled substances received into stock</small></p>
                 <?php if (empty($materials_in)): ?>
-                    <p>No incoming materials recorded.</p>
+                    <p>No incoming controlled materials recorded.</p>
                 <?php else: ?>
                     <table style="font-size: 0.9rem;">
                         <thead>
@@ -193,12 +263,12 @@ for ($m = 1; $m <= 12; $m++) {
                 <?php endif; ?>
             </div>
 
-            <!-- Materials OUT (Month) -->
+            <!-- Materials OUT -->
             <div class="glass-panel">
                 <h3>📤 Materials Out (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
-                <p><small>Based on Completed Transfers</small></p>
+                <p><small>Controlled substances dispatched via completed transfers</small></p>
                 <?php if (empty($report_items)): ?>
-                    <p>No outgoing transfers recorded.</p>
+                    <p>No outgoing controlled transfers recorded.</p>
                 <?php else: ?>
                     <table style="font-size: 0.9rem;">
                         <thead>
@@ -214,8 +284,8 @@ for ($m = 1; $m <= 12; $m++) {
                                 <tr>
                                     <td><?= h($out['date']) ?></td>
                                     <td><?= h($out['destination']) ?></td>
-                                    <td><?= h($out['item']['name']) ?></td>
-                                    <td class="text-danger">-<?= h($out['item']['qty']) ?></td>
+                                    <td><?= h($out['item_name']) ?></td>
+                                    <td class="text-danger">-<?= h($out['qty']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -224,8 +294,9 @@ for ($m = 1; $m <= 12; $m++) {
             </div>
         </div>
 
+        <!-- 12-Month Overview -->
         <div class="glass-panel" style="margin-top: 2rem;">
-            <h3>📊 12-Month Overview (<?= h($selected_year) ?>)</h3>
+            <h3>📊 12-Month Overview (<?= h($selected_year) ?>) — Controlled Substances</h3>
             <table style="text-align: center;">
                 <thead>
                     <tr>
@@ -253,7 +324,72 @@ for ($m = 1; $m <= 12; $m++) {
             </table>
         </div>
 
+        <!-- MCA Report -->
+        <div class="glass-panel" style="margin-top: 2rem;">
+            <div
+                style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+                <div>
+                    <h3 style="margin:0;">📋 MCA Report — <?= date('F Y', strtotime($selected_month)) ?></h3>
+                    <p style="margin:0;"><small>Ministry of Health / Medicinal Cannabis Agency format</small></p>
+                </div>
+                <button onclick="exportMcaCsv()" class="btn"
+                    style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); font-size: 0.85rem;">
+                    ⬇ Export CSV
+                </button>
+            </div>
+
+            <?php if (empty($mca_rows)): ?>
+                <p>No completed controlled substance transfers recorded for this month.</p>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table id="mca-table" style="font-size: 0.9rem;">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Pharmacy Supplied</th>
+                                <th>Address</th>
+                                <th>Product Description</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($mca_rows as $row): ?>
+                                <tr>
+                                    <td><?= h($row['date']) ?></td>
+                                    <td><?= h($row['pharmacy']) ?></td>
+                                    <td><?= h($row['address']) ?></td>
+                                    <td><?= h($row['product']) ?></td>
+                                    <td><?= h($row['qty']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+
     </div>
+
+    <script>
+        function exportMcaCsv() {
+            const table = document.getElementById('mca-table');
+            if (!table) { alert('No data to export.'); return; }
+
+            let csv = [];
+            for (const row of table.rows) {
+                const cols = Array.from(row.cells).map(c => '"' + c.innerText.replace(/"/g, '""') + '"');
+                csv.push(cols.join(','));
+            }
+
+            const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'MCA_Report_<?= $selected_month ?>.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
 </body>
 
 </html>

@@ -19,6 +19,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Exception $e) {
             $message = "Error undoing action: " . $e->getMessage();
         }
+    } elseif ($action === 'upgrade_schema_v013') {
+        try {
+            require_once 'migrate_v0.13.php';
+            $message = "✅ Schema upgraded to v0.13 successfully. Receiver fields are now active.";
+        } catch (Exception $e) {
+            $message = "Error during migration: " . $e->getMessage();
+        }
     } elseif ($action === 'restore') {
         if (isset($_FILES['db_file']) && $_FILES['db_file']['error'] === UPLOAD_ERR_OK) {
             $uploadPath = $_FILES['db_file']['tmp_name'];
@@ -155,6 +162,27 @@ $last_action = $pdo->query("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1")->
                         <button type="submit" class="btn" style="background: #ef4444;"
                             onclick="return confirm('EXTREME DANGER: This will wipe the current data and replace it with the uploaded file. Are you absolutely sure?');">Replace
                             Database</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schema Upgrades -->
+        <div class="glass-panel" style="margin-top: 2rem; border-color: rgba(234, 179, 8, 0.4);">
+            <h3>⬆️ Schema Upgrades <small style="font-size:0.8rem; font-weight:400; color: #eab308;">(interim — remove
+                    in future build)</small></h3>
+            <div style="display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 250px;">
+                    <h4>v0.13 — Verified Receivers + Two-Phase Chain of Custody</h4>
+                    <p style="font-size: 0.9rem;">Adds <code>receiver_id</code> and <code>received_by</code> columns to
+                        Chain of Custody records, creates the <code>verified_receivers</code> table, and backfills
+                        existing completed records with <em>"Samantha"</em> as the receiver name.</p>
+                    <p style="font-size: 0.85rem; color: #eab308;">⚠️ Safe to run multiple times — idempotent.</p>
+                    <form method="POST"
+                        onsubmit="return confirm('Run v0.13 schema upgrade? This is safe to run on an existing database.');">
+                        <input type="hidden" name="action" value="upgrade_schema_v013">
+                        <button type="submit" class="btn" style="background: #eab308; color: #000;">Upgrade to v0.13
+                            Schema</button>
                     </form>
                 </div>
             </div>
