@@ -1,4 +1,9 @@
 # Changelog
+## [0.13.6]
+- **Reports**: Switched to single-column stacked layout (Materials In → Materials Out → 12-Month Overview).
+- **Reports**: Moved Export CSV button above the Materials Out heading so copy-selecting the table doesn't capture the button.
+- **Reports**: Removed sub-header from Materials Out panel.
+
 ## [0.13.5]
 - **Reports**: Merged duplicate Materials Out and MCA Report into a single panel with Destination, Address, Product, and Qty columns plus CSV export.
 - **Reports**: Simplified product names — now shows item name only (no SKU or bundle reference).
