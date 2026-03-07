@@ -310,77 +310,74 @@ for ($m = 1; $m <= 12; $m++) {
             ⚠️ All figures show <strong>controlled substances only</strong>. Bundle quantities are expanded to their individual controlled components.
         </p>
 
-        <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <!-- Materials IN -->
+        <div class="glass-panel" style="margin-bottom: 2rem;">
+            <h3>📥 Materials In (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
+            <p><small>Controlled substances received into stock</small></p>
+            <?php if (empty($materials_in)): ?>
+                <p>No incoming controlled materials recorded.</p>
+            <?php else: ?>
+                <table style="font-size: 0.9rem;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($materials_in as $in): ?>
+                            <tr>
+                                <td><?= h($in['date']) ?></td>
+                                <td><?= h($in['name']) ?> <small>(<?= h($in['sku']) ?>)</small></td>
+                                <td class="text-success">+<?= h($in['qty']) ?> <?= h($in['unit']) ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
 
-            <!-- Materials IN -->
-            <div class="glass-panel">
-                <h3>📥 Materials In (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
-                <p><small>Controlled substances received into stock</small></p>
-                <?php if (empty($materials_in)): ?>
-                    <p>No incoming controlled materials recorded.</p>
-                <?php else: ?>
-                    <table style="font-size: 0.9rem;">
+        <!-- Materials OUT (MCA format) -->
+        <div class="glass-panel" style="margin-bottom: 2rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
+                <div>
+                    <h3 style="margin:0;">📤 Materials Out (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
+                    <p style="margin:0;"><small>Controlled substances dispatched via completed transfers</small></p>
+                </div>
+                <button onclick="exportMcaCsv()" class="btn"
+                    style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); font-size: 0.85rem;">
+                    ⬇ Export CSV
+                </button>
+            </div>
+            <?php if (empty($mca_rows)): ?>
+                <p>No completed controlled substance transfers recorded for this month.</p>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table id="mca-table" style="font-size: 0.9rem;">
                         <thead>
                             <tr>
                                 <th>Date</th>
-                                <th>Item</th>
+                                <th>Destination</th>
+                                <th>Address</th>
+                                <th>Product</th>
                                 <th>Qty</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($materials_in as $in): ?>
+                            <?php foreach ($mca_rows as $row): ?>
                                 <tr>
-                                    <td><?= h($in['date']) ?></td>
-                                    <td><?= h($in['name']) ?> <small>(<?= h($in['sku']) ?>)</small></td>
-                                    <td class="text-success">+<?= h($in['qty']) ?>         <?= h($in['unit']) ?></td>
+                                    <td><?= h($row['date']) ?></td>
+                                    <td><?= h($row['pharmacy']) ?></td>
+                                    <td><?= h($row['address']) ?></td>
+                                    <td><?= h($row['product']) ?></td>
+                                    <td class="text-danger">-<?= h($row['qty']) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
-                <?php endif; ?>
-            </div>
-
-            <!-- Materials OUT (MCA format) -->
-            <div class="glass-panel">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <div>
-                        <h3 style="margin:0;">📤 Materials Out (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
-                        <p style="margin:0;"><small>Controlled substances dispatched via completed transfers</small></p>
-                    </div>
-                    <button onclick="exportMcaCsv()" class="btn"
-                        style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); font-size: 0.8rem; padding: 0.3rem 0.6rem;">
-                        ⬇ CSV
-                    </button>
                 </div>
-                <?php if (empty($mca_rows)): ?>
-                    <p>No completed controlled substance transfers recorded for this month.</p>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table id="mca-table" style="font-size: 0.9rem;">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Destination</th>
-                                    <th>Address</th>
-                                    <th>Product</th>
-                                    <th>Qty</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($mca_rows as $row): ?>
-                                    <tr>
-                                        <td><?= h($row['date']) ?></td>
-                                        <td><?= h($row['pharmacy']) ?></td>
-                                        <td><?= h($row['address']) ?></td>
-                                        <td><?= h($row['product']) ?></td>
-                                        <td class="text-danger">-<?= h($row['qty']) ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
-            </div>
+            <?php endif; ?>
         </div>
 
         <!-- 12-Month Overview -->
