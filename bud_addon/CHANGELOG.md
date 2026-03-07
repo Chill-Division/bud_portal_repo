@@ -1,4 +1,10 @@
 # Changelog
+## [0.13.5]
+- **Reports**: Merged duplicate Materials Out and MCA Report into a single panel with Destination, Address, Product, and Qty columns plus CSV export.
+- **Reports**: Simplified product names — now shows item name only (no SKU or bundle reference).
+- **Admin**: Replaced schema upgrade panel with Stock Integrity Check tool — verifies stock quantities against audit history and COC deductions.
+- **Docs**: Added versioning instructions to README for Home Assistant addon releases.
+
 ## [0.13.4]
 - **Admin**: Added JSON database export for debugging — exports all tables as a downloadable `.json` file from the Admin Dashboard.
 
