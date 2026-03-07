@@ -1,4 +1,7 @@
 # Changelog
+## [0.13.4]
+- **Admin**: Added JSON database export for debugging — exports all tables as a downloadable `.json` file from the Admin Dashboard.
+
 ## [0.13.3]
 - **Reporting fix**: Corrected reports to include ControlledComponents()
 

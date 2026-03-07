@@ -72,6 +72,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $message = "Database file not found.";
     }
+} elseif (isset($_GET['action']) && $_GET['action'] === 'export_json') {
+    // Export entire database as JSON for debugging
+    $tables = [
+        'stock_items',
+        'product_bundles',
+        'bundle_items',
+        'chain_of_custody',
+        'verified_receivers',
+        'suppliers',
+        'cleaning_schedules',
+        'cleaning_logs',
+        'time_logs',
+    ];
+
+    $export = ['exported_at' => date('Y-m-d H:i:s T'), 'tables' => []];
+
+    foreach ($tables as $table) {
+        try {
+            $rows = $pdo->query("SELECT * FROM $table")->fetchAll();
+            $export['tables'][$table] = $rows;
+        } catch (Exception $e) {
+            $export['tables'][$table] = ['error' => $e->getMessage()];
+        }
+    }
+
+    // Audit log: last 100 entries (can be large)
+    try {
+        $rows = $pdo->query("SELECT * FROM audit_log ORDER BY id DESC LIMIT 100")->fetchAll();
+        $export['tables']['audit_log_last_100'] = $rows;
+    } catch (Exception $e) {
+        $export['tables']['audit_log_last_100'] = ['error' => $e->getMessage()];
+    }
+
+    header('Content-Type: application/json');
+    header('Content-Disposition: attachment; filename="bud_export_' . date('Y-m-d_H-i') . '.json"');
+    echo json_encode($export, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
 }
 
 // Fetch Last Action
@@ -144,8 +181,12 @@ $last_action = $pdo->query("SELECT * FROM audit_log ORDER BY id DESC LIMIT 1")->
                 <div style="margin-bottom: 2rem;">
                     <h4>Backup</h4>
                     <p>Download a snapshot of the current database.</p>
-                    <a href="?action=download" class="btn" style="background: var(--success-color, #10b981);">Download
-                        .db File</a>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <a href="?action=download" class="btn" style="background: var(--success-color, #10b981);">Download
+                            .db File</a>
+                        <a href="?action=export_json" class="btn" style="background: var(--primary-color, #3b82f6);">Export
+                            as JSON</a>
+                    </div>
                 </div>
 
                 <hr style="border-color: rgba(255,255,255,0.1); margin: 1.5rem 0;">

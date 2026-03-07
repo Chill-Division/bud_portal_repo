@@ -8,6 +8,7 @@ The **BUD Portal** is a comprehensive Business Utility Dashboard for stock manag
 -   **Chain of Custody**: Log controlled substance shipments with digital signatures.
 -   **Scheduling**: Manage cleaning rosters and recurring tasks.
 -   **Timesheets**: Simple staff clock-in/out.
+-   **Admin Dashboard**: Undo actions, backup/restore database, and export the full database as JSON for debugging.
 
 ## Installation
 1.  Add the **Chill Division Addons** repository to your Home Assistant Addon Store.
