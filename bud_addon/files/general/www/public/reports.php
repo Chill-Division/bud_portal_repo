@@ -340,16 +340,13 @@ for ($m = 1; $m <= 12; $m++) {
 
         <!-- Materials OUT (MCA format) -->
         <div class="glass-panel" style="margin-bottom: 2rem;">
-            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
-                <div>
-                    <h3 style="margin:0;">📤 Materials Out (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
-                    <p style="margin:0;"><small>Controlled substances dispatched via completed transfers</small></p>
-                </div>
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 0.5rem;">
                 <button onclick="exportMcaCsv()" class="btn"
                     style="background: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); font-size: 0.85rem;">
                     ⬇ Export CSV
                 </button>
             </div>
+            <h3 style="margin:0 0 0.5rem;">📤 Materials Out (<?= date('F Y', strtotime($selected_month)) ?>)</h3>
             <?php if (empty($mca_rows)): ?>
                 <p>No completed controlled substance transfers recorded for this month.</p>
             <?php else: ?>
