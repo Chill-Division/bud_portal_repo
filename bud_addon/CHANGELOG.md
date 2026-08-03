@@ -1,4 +1,8 @@
 # Changelog
+## [0.17.1] - 2026-08-03
+### Fixed
+- **Test suite**: The S29 and smoke test scripts could report spurious failures (or, in the smoke test's case, mask a real PHP error) due to a `set -o pipefail` interaction with `echo "$var" | grep -q` — `grep -q` exits as soon as it matches, which can SIGPIPE the still-writing `echo` and make the pipeline report a false failure. No functional/runtime change.
+
 ## [0.17.0] - 2026-08-02
 ### Added
 - **S29 Top Orders**: New hidden-by-default "🏆 Top Orders" panel on the S29 page with Patients / Prescribers / Places tabs. Shows the top 10 by total quantity for the current filters, combining separate fills by the same person into one row with order count and first/last order dates. Clicking a name filters the supply records to just theirs.
