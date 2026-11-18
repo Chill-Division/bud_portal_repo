@@ -51,8 +51,10 @@ if ! php tests/wording_check.php "http://127.0.0.1:$PORT"; then
     exit 1
 fi
 # PHP warnings and notices go to the server's log, not the page, so a page
-# can look fine while a variable is missing. Treat any as a failure.
-if grep -E "PHP (Warning|Notice|Deprecated|Fatal)" "$TMP/server.log"; then
+# can look fine while a variable is missing. Treat any as a failure, except
+# the PHP install's own startup messages ("in Unknown on line 0", like the
+# JIT notice on GitHub's runners), which aren't from BUD's code.
+if grep -E "PHP (Warning|Notice|Deprecated|Fatal)" "$TMP/server.log" | grep -v "in Unknown on line 0"; then
     echo "FAIL: PHP reported problems while serving the pages (above)" >&2
     exit 1
 else
