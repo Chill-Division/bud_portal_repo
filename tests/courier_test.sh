@@ -130,7 +130,9 @@ grep -q 'Test Growers Ltd' <<< "$(curl -fsS "$B/custody.php")" \
 curl -fsS -o /dev/null -X POST "$B/receivers.php" -d "action=add_receiver" -d "name=Licensed Pharmacy" -d "licence_number=PH-42"
 check "a receiver's licence number is saved" "$(q "SELECT licence_number FROM verified_receivers WHERE name='Licensed Pharmacy';")" "PH-42"
 
-if grep -E "PHP (Warning|Notice|Deprecated|Fatal)" "$TMP/server.log"; then
+# PHP warnings go to the server's log, not the page. The PHP install's own
+# startup messages ("in Unknown on line 0") aren't from BUD's code.
+if grep -E "PHP (Warning|Notice|Deprecated|Fatal)" "$TMP/server.log" | grep -v "in Unknown on line 0"; then
     echo "FAIL: PHP reported problems (above)" >&2
     fail=1
 fi
