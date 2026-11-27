@@ -1236,6 +1236,12 @@ td.num--out {
   box-shadow: var(--b-shadow), inset 4px 0 0 var(--b-danger);
 }
 
+/* Waiting for Home Assistant to reconnect (js/bud.js), until it's back */
+#budReconnect:not(.toast--error) {
+  border-color: var(--b-accent-strong);
+  box-shadow: var(--b-shadow), inset 4px 0 0 var(--b-accent-strong);
+}
+
 /* --------------------------------------------------------------------------
    10. Pop-ups (Pico's <dialog>)
    -------------------------------------------------------------------------- */
@@ -1369,6 +1375,23 @@ dialog.bud-modal:focus-visible {
   background: var(--b-warning-soft);
   color: var(--b-text);
   font-size: 0.9rem;
+}
+
+/* Waiting for Home Assistant to reconnect before a form goes (js/bud.js) */
+.bud-modal .bud-reconnect {
+  margin: 0.25rem 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--b-accent-strong);
+  border-left-width: 4px;
+  border-radius: var(--pico-border-radius);
+  background: var(--b-accent-soft);
+  color: var(--b-text);
+  font-size: 0.9rem;
+}
+
+.bud-modal .bud-reconnect.is-failed {
+  border-color: var(--b-danger);
+  background: var(--b-danger-soft);
 }
 
 /* The receiver's name on the review step, big enough to spot a typo */

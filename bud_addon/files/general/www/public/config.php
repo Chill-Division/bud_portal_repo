@@ -269,5 +269,5 @@ function h($string)
 define('APP_NAME', 'BUD');
 // The release. Bump it with config.yaml's version and the CHANGELOG heading
 // (tests/check_version.sh checks they match).
-define('BUD_VERSION', '1.1.0');
+define('BUD_VERSION', '1.1.1');
 ?>
