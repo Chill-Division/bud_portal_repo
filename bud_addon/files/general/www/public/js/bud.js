@@ -10,6 +10,8 @@
  *   data-confirm-title that ask before they send, and buttons with
  *   data-notice-title that explain why something can't be done yet
  * - forms can't be sent twice by a double tap
+ * - a form waits for Home Assistant to reconnect after a phone has been
+ *   asleep, instead of being lost to a "401: Unauthorized" page
  * - exportTableCsv() for the CSV buttons
  * - createSignaturePad() for the signature boxes
  * - three clicks on the version number open the admin tools
@@ -182,11 +184,21 @@ function markFormSubmitting(form) {
     }, 0);
 }
 
+/** Let a form be sent again (Back button, or Home Assistant didn't come back). */
+function resetFormSubmit(form) {
+    delete form.dataset.submitting;
+    delete form.dataset.confirmed;
+    form.querySelectorAll('button[aria-busy], button[data-held]').forEach(button => {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        delete button.dataset.held;
+    });
+}
+
 /** Submit a form after a confirm step, at most once. */
 function submitOnce(form) {
     if (form.dataset.submitting) return;
-    markFormSubmitting(form);
-    form.submit();
+    sendWhenReachable(form, null);
 }
 
 // Capture phase: runs before a page's own submit handler, so a second tap
@@ -234,23 +246,210 @@ document.addEventListener('click', (event) => {
 });
 
 // Bubble phase: after the page's handlers. If none of them cancelled the
-// submit, it's really on its way.
+// submit, it's on its way. A form that saves something goes once BUD knows
+// it can get through to Home Assistant.
 document.addEventListener('submit', (event) => {
-    if (!event.defaultPrevented) markFormSubmitting(event.target);
+    if (event.defaultPrevented) return;
+    const form = event.target;
+    if ((form.getAttribute('method') || '').toLowerCase() !== 'post') {
+        markFormSubmitting(form);
+        return;
+    }
+    event.preventDefault();
+    sendWhenReachable(form, event.submitter);
 });
 
 // Coming back with the Back button can restore a page mid-submit
 window.addEventListener('pageshow', (event) => {
     if (!event.persisted) return;
-    document.querySelectorAll('form[data-submitting]').forEach(form => {
-        delete form.dataset.submitting;
-        delete form.dataset.confirmed;
-        form.querySelectorAll('button[aria-busy]').forEach(button => {
-            button.disabled = false;
-            button.removeAttribute('aria-busy');
-        });
-    });
+    document.querySelectorAll('form[data-submitting]').forEach(resetFormSubmit);
+    budClearConnection();
 });
+
+/* --------------------------------------------------------------------------
+ * Getting through to Home Assistant
+ *
+ * Home Assistant lets BUD's pages through on a session that lapses after a
+ * quarter of an hour unused. Its own page renews the session every minute,
+ * but that stops while a phone sleeps, and Home Assistant 2026.11 and older
+ * only renew it on their next tick, up to a minute after the phone wakes.
+ * Until then every request to BUD gets Home Assistant's own
+ * "401: Unauthorized" page, so a form sent in that minute was lost,
+ * signature and all.
+ *
+ * So a form asks ping.php first. If that doesn't get through, the form
+ * waits, says so, and goes by itself once Home Assistant is back. A page
+ * coming back after a while away checks straight away too, and holds a
+ * tapped link until it can get through.
+ * -------------------------------------------------------------------------- */
+
+const BUD_WAIT_TEXT = 'Waiting for Home Assistant to reconnect. What you\'ve entered is kept, and BUD saves it as soon as Home Assistant is back.';
+const BUD_FAILED_TEXT = 'BUD still can\'t reach Home Assistant, so nothing has been saved yet. Check the connection, then try again.';
+const BUD_WAKE_TEXT = 'Reconnecting to Home Assistant. After the screen has been off, this can take up to a minute.';
+
+function budSleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/** True when a request gets through Home Assistant to BUD. */
+async function budCanReach() {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 8000) : null;
+    try {
+        const response = await fetch('ping.php', {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal: controller ? controller.signal : undefined,
+        });
+        return response.ok;
+    } catch (e) {
+        return false; // offline, or no answer within 8 seconds
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/**
+ * Resolves true once a request gets through. onWaiting runs if the first try
+ * doesn't. After `tries` more tries, about three minutes for the default,
+ * it gives up and resolves false. That covers Home Assistant missing a
+ * renewal while its own connection comes back, and trying again a minute
+ * later. Time the page spends asleep doesn't count.
+ */
+async function budWhenReachable(onWaiting, tries = 90) {
+    if (await budCanReach()) return true;
+    if (onWaiting) onWaiting();
+    for (let i = 0; i < tries; i++) {
+        await budSleep(i === 0 ? 1000 : (i < 90 ? 2000 : 10000));
+        if (await budCanReach()) return true;
+    }
+    return false;
+}
+
+/**
+ * Say what's happening: in the form when it's in a pop-up (the pop-up covers
+ * the rest of the page), otherwise in a bar at the foot of the screen.
+ */
+function budShowConnection(form, submitter, text, failed = false) {
+    let note;
+    if (form && form.closest('dialog[open]')) {
+        note = form.querySelector('.bud-reconnect');
+        if (!note) {
+            note = document.createElement('p');
+            note.className = 'bud-reconnect';
+            const button = submitter || form.querySelector('button[type="submit"], button:not([type])');
+            const row = button && button.parentElement !== form ? button.parentElement : button;
+            if (row && form.contains(row)) row.before(note); else form.appendChild(note);
+        }
+        note.classList.toggle('is-failed', failed);
+    } else {
+        note = document.getElementById('budReconnect');
+        if (!note) {
+            let container = document.getElementById('toastContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toastContainer';
+                document.body.appendChild(container);
+            }
+            note = document.createElement('div');
+            note.id = 'budReconnect';
+            note.className = 'toast toast--visible';
+            container.appendChild(note);
+        }
+        note.classList.toggle('toast--error', failed);
+    }
+    note.setAttribute('role', failed ? 'alert' : 'status');
+    note.textContent = text;
+}
+
+/** Take the waiting message away (from a form, and the bar). */
+function budClearConnection(form) {
+    if (form) form.querySelectorAll('.bud-reconnect').forEach(note => note.remove());
+    const bar = document.getElementById('budReconnect');
+    if (bar) bar.remove();
+}
+
+/**
+ * Send a form once BUD can reach Home Assistant. Its buttons are held while
+ * it waits. If Home Assistant isn't back after about three minutes, or the
+ * pop-up the form is in gets closed, nothing is sent and the form can be
+ * tried again.
+ */
+async function sendWhenReachable(form, submitter) {
+    markFormSubmitting(form);
+    form.querySelectorAll('button:not([disabled])').forEach(button => {
+        button.disabled = true;
+        button.dataset.held = '1';
+    });
+    const dialog = form.closest('dialog[open]');
+    const ok = await budWhenReachable(() => budShowConnection(form, submitter, BUD_WAIT_TEXT));
+    if (dialog && !dialog.open) {
+        resetFormSubmit(form);
+        budClearConnection(form);
+        return;
+    }
+    if (!ok) {
+        resetFormSubmit(form);
+        budShowConnection(form, submitter, BUD_FAILED_TEXT, true);
+        return;
+    }
+    budClearConnection(form);
+    if (submitter && submitter.name) {
+        // form.submit() leaves out the button that was pressed
+        const pressed = document.createElement('input');
+        pressed.type = 'hidden';
+        pressed.name = submitter.name;
+        pressed.value = submitter.value;
+        form.appendChild(pressed);
+    }
+    // The prototype's submit, in case the form has a field called "submit"
+    HTMLFormElement.prototype.submit.call(form);
+}
+
+// A page coming back after more than a minute away (a phone waking up)
+// checks straight away, so a lapsed session shows before anyone taps
+// anything. Chromium fires freeze and resume around a frozen page, other
+// browsers only visibilitychange.
+(function () {
+    let awaySince = 0;
+    let waking = null;
+
+    function away() {
+        if (!awaySince) awaySince = Date.now();
+    }
+
+    function back() {
+        const gone = awaySince ? Date.now() - awaySince : 0;
+        awaySince = 0;
+        if (gone < 60000 || waking) return;
+        waking = (async () => {
+            // Home Assistant 2026.12 and later renew the session as the page
+            // comes back, so give that a moment first
+            await budSleep(1500);
+            await budWhenReachable(() => budShowConnection(null, null, BUD_WAKE_TEXT), Infinity);
+            budClearConnection();
+            waking = null;
+        })();
+    }
+
+    document.addEventListener('visibilitychange', () => (document.hidden ? away() : back()));
+    document.addEventListener('freeze', away);
+    document.addEventListener('resume', back);
+
+    // A link tapped while BUD is reconnecting opens once it can get through
+    document.addEventListener('click', (event) => {
+        if (!waking || event.defaultPrevented || event.button !== 0
+            || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const link = event.target.closest('a[href]');
+        if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return;
+        const url = new URL(link.href, document.baseURI);
+        if (url.origin !== location.origin) return;
+        // A jump within the page doesn't ask Home Assistant for anything
+        if (url.hash && url.pathname === location.pathname && url.search === location.search) return;
+        event.preventDefault();
+        waking.then(() => { window.location.href = url.href; });
+    });
+})();
 
 /**
  * A confirm pop-up. Resolves true (confirm) or false (cancel).

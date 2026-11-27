@@ -1,4 +1,10 @@
 # Changelog
+## [1.1.1] - 2026-11-27
+Signing for a transfer on a phone that's been asleep now works first time.
+
+### Important fixes
+- **Nothing is lost when a phone wakes up.** After a phone has been asleep for a while, Home Assistant can take up to a minute to let BUD through again, and a transfer signed for in that minute failed with "401: Unauthorized". BUD now waits for Home Assistant to reconnect, says so, and saves by itself as soon as it's back. Every other form in BUD does the same.
+
 ## [1.1.0] - 2026-11-18
 Hide the stock items and bundles you've stopped using, without losing their history.
 

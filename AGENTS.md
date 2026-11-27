@@ -84,6 +84,12 @@ database on every request.
 - Authentication is Home Assistant's job. There's no login.
 - BUD is served through Home Assistant's ingress, under a deep path. Always
   use relative URLs for links, assets and requests.
+- Home Assistant's ingress session lapses while a phone sleeps, and until
+  Home Assistant renews it every request gets its own "401: Unauthorized"
+  page. So `js/bud.js` asks `ping.php` before a POST form goes, and holds
+  the form until Home Assistant is back. Send forms the normal way or with
+  `submitOnce()`, never with `form.submit()` directly, and give any new
+  `fetch()` that saves something the same check (`budWhenReachable()`).
 - Nothing loads from the internet. Pico, Inter and Chart.js are served by
   the app (with their licences beside them).
 - The app image runs PHP 8.3 with only pdo, pdo_sqlite, session, simplexml

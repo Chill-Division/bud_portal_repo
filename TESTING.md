@@ -140,6 +140,14 @@ installed instances only see an update when the version changes.
    backup includes the app. The admin tools (three clicks on the version
    number under "BUD" in the app bar) also offer a `.db` download and JSON
    export.
+5. After a phone has been asleep: open a transfer's Complete pop-up on a
+   phone, sign, tap **Review and save**, then lock the phone for 20 minutes.
+   Unlock it and tap **Confirm and save** straight away. BUD says it's
+   waiting for Home Assistant to reconnect and saves by itself within a
+   minute or so, with no "401: Unauthorized" page. To see the waiting
+   message without the wait, block requests to `ping.php` in the browser's
+   developer tools (Network request blocking), save something, then
+   unblock it.
 
 ## Local development without Docker
 

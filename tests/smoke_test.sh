@@ -58,6 +58,19 @@ for page in $PAGES; do
     fi
 done
 
+# The connection check js/bud.js makes before a form goes: an empty 204
+# that's never cached, or a form could go out on a stale answer
+ping_headers=$(curl -sS -D - -o "$TMP/ping.body" "http://127.0.0.1:$PORT/ping.php" | tr -d '\r')
+if grep -q "^HTTP/[0-9.]* 204" <<< "$ping_headers" \
+    && grep -qi "^Cache-Control: no-store" <<< "$ping_headers" \
+    && [ ! -s "$TMP/ping.body" ]; then
+    echo "  ok: ping.php"
+else
+    echo "FAIL: ping.php should answer an empty 204 with Cache-Control: no-store; got:" >&2
+    echo "$ping_headers" >&2
+    fail=1
+fi
+
 # The same pages again with the demo data in (tests/seed_demo_data.php), so
 # every table, badge and button renders, and the seed keeps up with the schema
 if php tests/seed_demo_data.php --force >/dev/null; then

@@ -120,6 +120,13 @@ themes. BUD remembers your choice on each device.
 
 <img src="https://raw.githubusercontent.com/Chill-Division/bud_portal_repo/main/docs/screenshots/desktop-dashboard-dark.png" alt="The Dashboard in the dark theme" width="900">
 
+### After a phone has been asleep
+
+When a phone or tablet has been asleep for a while, Home Assistant can take
+up to a minute to let BUD through again. BUD says it's reconnecting, and
+anything you save in that minute waits and saves by itself once Home
+Assistant is back, so nothing you've entered or signed is lost.
+
 ## Shipping manifests and courier deliveries
 
 Every transfer prints a Universal shipping manifest, the one in the security
